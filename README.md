@@ -1,10 +1,10 @@
-# 📊 ExtratoConverter — Conversor de Extratos Bancários para Prosoft
+# ExtratoConverter — Conversor de Extratos Bancários para Prosoft
 
 Converte extratos bancários em PDF para o formato Excel pronto para importar no sistema de gestão contábil **Prosoft**.
 
 ---
 
-## 🏗️ Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 ConverterExtratosBancarios/
@@ -41,7 +41,7 @@ ConverterExtratosBancarios/
 
 ---
 
-## 🚀 Como rodar localmente
+## Como rodar localmente
 
 ### Pré-requisitos
 - Python 3.10+
@@ -73,7 +73,7 @@ Acesse: **http://localhost:3000**
 
 ---
 
-## 🏦 Bancos suportados e acessos Prosoft
+## Bancos suportados e acessos Prosoft
 
 | Banco | Acesso |
 |---|---|
@@ -91,7 +91,7 @@ Acesse: **http://localhost:3000**
 
 ---
 
-## 📋 Regras de Classificação
+## Regras de Classificação
 
 ### Créditos (entradas)
 > **Débita** conta do banco → **Credita** Caixa (11002)
@@ -112,7 +112,7 @@ Acesse: **http://localhost:3000**
 
 ---
 
-## 🔒 Segurança
+## Segurança
 
 - O PDF é enviado **apenas para o backend local** (roda na sua máquina)
 - **Nenhum dado** é armazenado em banco de dados ou servidor externo
@@ -130,7 +130,7 @@ Acesse: **http://localhost:3000**
 
 ---
 
-## 📄 Formato do Excel gerado
+## Formato do Excel gerado
 
 | Data | Descrição | Tipo | Débito | Crédito | Valor (R$) |
 |---|---|---|---|---|---|
