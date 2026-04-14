@@ -62,17 +62,17 @@ export default function TabelaRevisao({ lancamentos, onLancamentosChange, onExpo
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button onClick={onVoltar} style={btnSecondary}>← Novo extrato</button>
           <button onClick={onExportar} disabled={loading} style={btnPrimary}>
-            {loading ? '⏳ Gerando...' : '⬇️ Exportar Excel'}
+            {loading ? 'Gerando...' : 'Exportar Excel'}
           </button>
         </div>
       </div>
 
       {/* Cards resumo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <ResumoCard label="Total de Lançamentos" valor={lancamentos.length} icon="📋" cor="var(--blue)" />
-        <ResumoCard label="Total Créditos" valor={`R$ ${fmt(totalCreditos)}`} icon="⬆️" cor="var(--accent-dark)" bg="var(--credit-bg)" />
-        <ResumoCard label="Total Débitos" valor={`R$ ${fmt(totalDebitos)}`} icon="⬇️" cor="#b45309" bg="var(--debit-bg)" />
-        {revisoes > 0 && <ResumoCard label="Para Revisão" valor={revisoes} icon="⚠️" cor="var(--danger)" bg="var(--review-bg)" />}
+        <ResumoCard label="Total de Lançamentos" valor={lancamentos.length} cor="var(--blue)" />
+        <ResumoCard label="Total Créditos" valor={`R$ ${fmt(totalCreditos)}`} cor="var(--accent-dark)" bg="var(--credit-bg)" />
+        <ResumoCard label="Total Débitos" valor={`R$ ${fmt(totalDebitos)}`} cor="#b45309" bg="var(--debit-bg)" />
+        {revisoes > 0 && <ResumoCard label="Para Revisão" valor={revisoes} cor="var(--danger)" bg="var(--review-bg)" />}
       </div>
 
       {/* Filtros e busca */}
@@ -265,7 +265,7 @@ const tdInput = {
 
 const btnPrimary = {
   padding: '0.6rem 1.3rem',
-  background: 'linear-gradient(135deg, var(--blue), var(--blue-light))',
+  background: 'linear-gradient(135deg, #4BB8E8, #1a7aaa)',
   color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)',
   fontFamily: 'var(--font-display)', fontWeight: 700,
   fontSize: '0.9rem', cursor: 'pointer', boxShadow: 'var(--shadow)',

@@ -1,8 +1,26 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '/api' });
+const api = axios.create({
+  baseURL: '/api',
+  withCredentials: true,
+});
 
-export const listarBancos = () => api.get('/bancos');
+api.interceptors.response.use(
+  r => r,
+  async err => {
+    const original = err.config;
+    if (err.response?.status === 401 && !original._retry) {
+      original._retry = true;
+      try {
+        await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        return api(original);
+      } catch {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(err);
+  }
+);
 
 export const processarExtrato = (arquivo, banco, nomeEmpresa, mesAno) => {
   const form = new FormData();
@@ -10,9 +28,7 @@ export const processarExtrato = (arquivo, banco, nomeEmpresa, mesAno) => {
   form.append('banco', banco);
   form.append('nome_empresa', nomeEmpresa);
   form.append('mes_ano', mesAno);
-  return api.post('/processar', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  return api.post('/processar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
 };
 
 export const exportarExcel = async (lancamentos, banco, nomeEmpresa, mesAno) => {

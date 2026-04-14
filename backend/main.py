@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from routes.extrato import router as extrato_router
+from routes.auth import router as auth_router
+from utils.auth import usuario_atual
 
-app = FastAPI(title="Conversor de Extratos Bancários", version="1.0.0")
+app = FastAPI(title="ExtratoConverter", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,8 +14,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(extrato_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(extrato_router, prefix="/api", dependencies=[Depends(usuario_atual)])
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Conversor de Extratos Bancários"}
+    return {"status": "ok", "app": "ExtratoConverter"}

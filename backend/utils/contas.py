@@ -4,6 +4,7 @@ CONTAS = {
     "21381": "Empréstimo BB",
     "11120": "Sicoob",
     "21325": "Empréstimo Sicoob",
+    "11161": "Sicoob Aplicação",
     "11045": "Itaú",
     "11146": "Itaú (Aplicação)",
     "11127": "PagBank",
@@ -15,6 +16,7 @@ CONTAS = {
     "53514": "IOF",
     "53501": "Juros",
     "53065": "Diversos (Impostos)",
+    "21504": "IRRF",
 }
 
 CONTA_CAIXA = "11002"
@@ -26,6 +28,8 @@ BANCO_CONTA = {
     "emprestimo_bb": "21381",
     "sicoob": "11120",
     "emprestimo_sicoob": "21325",
+    "sicoob_aplic": "11161",
+    "sicoob_aplicacao": "11161",
     "itau": "11045",
     "itau_aplicacao": "11146",
     "pagbank": "11127",
@@ -57,17 +61,13 @@ REGRAS_CLASSIFICACAO = [
     # ── DESPESAS BANCÁRIAS ───────────────────────────────────────────────────
     {
         "keywords": [
-            # Sicoob
             "debito pacote servicos", "débito pacote serviços", "pgs-ch prop coop",
             "pgs-ch próp coop", "tarifa renovacao limite", "tarifa renovação limite",
             "deb.seguro prestamista", "déb.seguro prestamista",
             "cheque pago caixa", "cheque compe integrada",
-            # BB
             "tarifa pacote de servicos", "tarifa pacote de serviços",
             "seg cred proteg empresa", "bb seguro", "bb giro pronampe",
-            # Itaú
             "tar cobranca", "tar cobran",
-            # Genéricos
             "pacote de servico", "pacote serviço", "pacote de serviços",
             "tarifa", "tarif", "taxa bancaria", "taxa de manut",
             "manutencao conta", "manutenção conta", "mensalidade",
@@ -81,15 +81,11 @@ REGRAS_CLASSIFICACAO = [
     # ── IMPOSTOS / TRIBUTOS ──────────────────────────────────────────────────
     {
         "keywords": [
-            # Sicoob
             "deb.conv.orgaos gov", "déb.conv.orgãos gov",
-            # BB
             "das - simples nacional", "simples nacional",
             "rfb-darf", "dae icms",
-            # Itaú
             "pagamentos pix qr-code receita federal",
             "pagamentos pix qr-code sefaz",
-            # Genéricos
             "tributo", "imposto", "darf", "gps", "gare", "das",
             "inss", "fgts", "irrf", "iss", "icms", "pis", "cofins",
             "csll", "irpj", "contribuicao", "contribuição",

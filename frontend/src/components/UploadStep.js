@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 const BANCOS = [
   { key: 'bb', nome: 'Banco do Brasil', conta: '11041' },
   { key: 'sicoob', nome: 'Sicoob', conta: '11120' },
+  { key: 'sicoob_aplic', nome: 'Sicoob Aplicação', conta: '11161' },
   { key: 'itau', nome: 'Itaú', conta: '11045' },
   { key: 'pagbank', nome: 'PagBank', conta: '11127' },
   { key: 'santander', nome: 'Santander', conta: '11126' },
@@ -53,7 +54,7 @@ export default function UploadStep({ onProcessar, loading }) {
         }}>
           Converta extratos bancários
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>
+        <p style={{ color: '#6a90a8', fontSize: '1rem' }}>
           Faça upload do PDF e gere o Excel já formatado para o Prosoft
         </p>
       </div>
@@ -79,8 +80,8 @@ export default function UploadStep({ onProcessar, loading }) {
           {bancoSelecionado && (
             <div style={{
               marginTop: '0.5rem', padding: '0.5rem 0.75rem',
-              background: 'var(--credit-bg)', borderRadius: 6,
-              fontSize: '0.8rem', color: 'var(--accent-dark)',
+              background: '#f0fbff', borderRadius: 6,
+              fontSize: '0.8rem', color: '#1a7aaa',
               border: '1px solid var(--credit-border)',
             }}>
               Conta Prosoft: <strong>{bancoSelecionado.conta}</strong> · {bancoSelecionado.nome}
@@ -120,12 +121,12 @@ export default function UploadStep({ onProcessar, loading }) {
           <div
             {...getRootProps()}
             style={{
-              border: `2px dashed ${isDragActive ? 'var(--accent)' : arquivo ? 'var(--blue)' : 'var(--border)'}`,
+              border: `2px dashed ${isDragActive ? '#4BB8E8' : arquivo ? '#4BB8E8' : 'var(--border)'}`,
               borderRadius: 'var(--radius)',
               padding: '2rem',
               textAlign: 'center',
               cursor: 'pointer',
-              background: isDragActive ? 'var(--credit-bg)' : arquivo ? '#f0f6ff' : 'var(--surface2)',
+              background: isDragActive ? '#f0fbff' : arquivo ? '#f0f6ff' : 'var(--surface2)',
               transition: 'all 0.2s',
             }}
           >
@@ -135,10 +136,10 @@ export default function UploadStep({ onProcessar, loading }) {
             </div>
             {arquivo ? (
               <>
-                <div style={{ fontWeight: 600, color: 'var(--blue)', fontSize: '0.95rem' }}>
+                <div style={{ fontWeight: 600, color: '#4BB8E8', fontSize: '0.95rem' }}>
                   {arquivo.name}
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                <div style={{ fontSize: '0.78rem', color: '#6a90a8', marginTop: 4 }}>
                   {(arquivo.size / 1024).toFixed(1)} KB · Clique para trocar
                 </div>
               </>
@@ -147,7 +148,7 @@ export default function UploadStep({ onProcessar, loading }) {
                 <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.95rem' }}>
                   {isDragActive ? 'Solte aqui!' : 'Arraste o PDF ou clique para selecionar'}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                <div style={{ fontSize: '0.8rem', color: '#6a90a8', marginTop: 4 }}>
                   Apenas arquivos .pdf
                 </div>
               </>
@@ -162,7 +163,7 @@ export default function UploadStep({ onProcessar, loading }) {
             style={{
               width: '100%', padding: '0.9rem',
               background: (!arquivo || !banco || loading)
-                ? 'var(--border)' : 'linear-gradient(135deg, var(--blue), var(--blue-light))',
+                ? 'var(--border)' : 'linear-gradient(135deg, #4BB8E8, #1a7aaa)',
               color: (!arquivo || !banco || loading) ? 'var(--text-muted)' : '#fff',
               border: 'none', borderRadius: 'var(--radius)',
               fontFamily: 'var(--font-display)', fontWeight: 700,
@@ -172,7 +173,7 @@ export default function UploadStep({ onProcessar, loading }) {
               boxShadow: (!arquivo || !banco || loading) ? 'none' : 'var(--shadow)',
             }}
           >
-            {loading ? 'Processando...' : 'Processar Extrato'}
+            {loading ? '⏳ Processando...' : '🚀 Processar Extrato'}
           </button>
         </Card>
       </form>

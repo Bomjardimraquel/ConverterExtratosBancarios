@@ -16,12 +16,11 @@ router = APIRouter()
 def listar_bancos():
     bancos = [
         {"key": "bb", "nome": "Banco do Brasil", "conta": "11041"},
-        {"key": "bb_rende_facil", "nome": "BB Rende Fácil (Aplicação)", "conta": "11142"},
         {"key": "emprestimo_bb", "nome": "Empréstimo BB", "conta": "21381"},
         {"key": "sicoob", "nome": "Sicoob", "conta": "11120"},
+        {"key": "sicoob_aplic", "nome": "Sicoob Aplicação", "conta": "11161"},
         {"key": "emprestimo_sicoob", "nome": "Empréstimo Sicoob", "conta": "21325"},
         {"key": "itau", "nome": "Itaú", "conta": "11045"},
-        {"key": "itau_aplicacao", "nome": "Itaú (Aplicação)", "conta": "11146"},
         {"key": "pagbank", "nome": "PagBank", "conta": "11127"},
         {"key": "santander", "nome": "Santander", "conta": "11126"},
         {"key": "bradesco", "nome": "Bradesco", "conta": "11044"},
@@ -66,7 +65,7 @@ async def processar_extrato(
         "banco": banco,
         "nome_empresa": nome_empresa,
         "mes_ano": mes_ano,
-        "lancamentos": [l.to_dict() for l in lancamentos],
+        "lancamentos": [l if isinstance(l, dict) else l.to_dict() for l in lancamentos],
     }
 
 

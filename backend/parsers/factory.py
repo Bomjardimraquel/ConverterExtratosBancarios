@@ -1,4 +1,5 @@
 from parsers.sicoob import ParserSicoob
+from parsers.sicoob_aplic import ParserSicoobAplic
 from parsers.bb import ParserBB
 from parsers.itau import ParserItau
 from parsers.generico import ParserGenerico
@@ -13,6 +14,8 @@ def get_parser(banco: str, conta_banco: str = None):
     parsers = {
         "sicoob": ParserSicoob,
         "emprestimo_sicoob": ParserSicoob,
+        "sicoob_aplic": ParserSicoobAplic,
+        "sicoob_aplicacao": ParserSicoobAplic,
         "bb": ParserBB,
         "banco_do_brasil": ParserBB,
         "bb_rende_facil": ParserBB,
