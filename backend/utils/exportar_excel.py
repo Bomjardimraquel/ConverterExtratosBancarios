@@ -5,6 +5,17 @@ from openpyxl.utils import get_column_letter
 from typing import List
 
 
+def _formatar_data(data: str, ano: str) -> str:
+    if not data:
+        return data
+    partes = data.split("/")
+    if len(partes) == 3:
+        return data
+    if len(partes) == 2 and ano:
+        return f"{partes[0]}/{partes[1]}/{ano}"
+    return data
+
+
 def gerar_excel(lancamentos: List[dict], nome_empresa: str = "", banco: str = "", mes_ano: str = "") -> bytes:
     wb = Workbook()
     ws = wb.active
@@ -47,6 +58,11 @@ def gerar_excel(lancamentos: List[dict], nome_empresa: str = "", banco: str = ""
         cell.border = borda
     ws.row_dimensions[2].height = 22
 
+    # ── Extrai ano do mes_ano (ex: 'março/2026' → '2026') ───────────────────
+    import re as _re
+    ano_match = _re.search(r'\d{4}', mes_ano or '')
+    ano = ano_match.group() if ano_match else ''
+
     # ── Dados ────────────────────────────────────────────────────────────────
     for row_idx, lanc in enumerate(lancamentos, 3):
         tipo = lanc.get("tipo", "")
@@ -60,7 +76,7 @@ def gerar_excel(lancamentos: List[dict], nome_empresa: str = "", banco: str = ""
             fill = PatternFill("solid", fgColor=COR_DEBITO)
 
         valores_linha = [
-            lanc.get("data", ""),
+            _formatar_data(lanc.get("data", ""), ano),
             lanc.get("descricao", ""),
             tipo,
             lanc.get("conta_debito", ""),

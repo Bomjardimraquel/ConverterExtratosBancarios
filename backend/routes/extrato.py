@@ -96,7 +96,9 @@ def exportar_excel(payload: ExportarRequest):
     dados = [l.model_dump() for l in payload.lancamentos]
     excel_bytes = gerar_excel(dados, payload.nome_empresa, payload.banco, payload.mes_ano)
 
-    nome_arquivo = f"lancamentos_{payload.banco}_{payload.mes_ano or 'extrato'}.xlsx".replace(" ", "_")
+    # Nome do arquivo: empresa + mês/ano
+    partes = [p for p in [payload.nome_empresa, payload.mes_ano] if p]
+    nome_arquivo = ("_".join(partes) if partes else f"lancamentos_{payload.banco}").replace(" ", "_") + ".xlsx"
 
     return StreamingResponse(
         io.BytesIO(excel_bytes),

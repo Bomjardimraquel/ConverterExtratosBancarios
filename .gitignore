@@ -20,3 +20,17 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Poppler (binário grande, não precisa no git)
+poppler/
+
+# Arquivos sensíveis — NUNCA subir
+backend/utils/auth.py
+
+# PDFs de teste
+*.pdf
+Downloads/
+
+# Logs
+*.log
+uvicorn.log
