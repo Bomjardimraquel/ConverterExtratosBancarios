@@ -2,6 +2,8 @@ from parsers.sicoob import ParserSicoob
 from parsers.sicoob_aplic import ParserSicoobAplic
 from parsers.bb import ParserBB
 from parsers.itau import ParserItau
+from parsers.pagbank import ParserPagBank
+from parsers.santander import ParserSantander
 from parsers.generico import ParserGenerico
 from utils.contas import BANCO_CONTA
 
@@ -22,9 +24,9 @@ def get_parser(banco: str, conta_banco: str = None):
         "emprestimo_bb": ParserBB,
         "itau": ParserItau,
         "itau_aplicacao": ParserItau,
+        "pagbank": ParserPagBank,
+        "santander": ParserSantander,
         "bradesco": ParserGenerico,
-        "santander": ParserGenerico,
-        "pagbank": ParserGenerico,
         "nordeste": ParserGenerico,
         "banco_nordeste": ParserGenerico,
     }
