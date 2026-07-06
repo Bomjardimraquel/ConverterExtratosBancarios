@@ -31,6 +31,12 @@ export const processarExtrato = (arquivo, banco, nomeEmpresa, mesAno) => {
   return api.post('/processar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
 };
 
+// Consulta o status de um job assíncrono (fila RQ).
+// Resposta esperada: { status: 'processando' | 'concluido' | 'erro', resultado?, erro? }
+export const consultarStatusJob = (jobId) => {
+  return api.get(`/status/${jobId}`);
+};
+
 export const exportarExcel = async (lancamentos, banco, nomeEmpresa, mesAno) => {
   const res = await api.post(
     '/exportar',

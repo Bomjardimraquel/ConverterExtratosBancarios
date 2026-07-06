@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Header from './components/Header';
@@ -6,7 +6,9 @@ import UploadStep from './components/UploadStep';
 import TabelaRevisao from './components/TabelaRevisao';
 import Login from './components/Login';
 import Landing from './components/Landing';
-import { processarExtrato, exportarExcel } from './utils/api';
+import { processarExtrato, consultarStatusJob, exportarExcel } from './utils/api';
+
+const INTERVALO_POLLING_MS = 2000;
 
 function AppContent() {
   const [etapa, setEtapa] = useState('upload');
@@ -14,17 +16,58 @@ function AppContent() {
   const [meta, setMeta] = useState({ banco: '', nomeEmpresa: '', mesAno: '' });
   const [loading, setLoading] = useState(false);
 
+  // guarda o id do setInterval pra poder cancelar (troca de página, erro, etc)
+  const pollingRef = useRef(null);
+
+  const pararPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  // garante que nenhum polling fica rodando sozinho se o usuário sair da tela
+  useEffect(() => pararPolling, []);
+
   const handleProcessar = async (arquivo, banco, nomeEmpresa, mesAno) => {
     setLoading(true);
     try {
       const res = await processarExtrato(arquivo, banco, nomeEmpresa, mesAno);
-      setLancamentos(res.data.lancamentos);
-      setMeta({ banco, nomeEmpresa, mesAno });
-      setEtapa('revisao');
-      toast.success(res.data.total + ' lançamentos encontrados!');
+      const jobId = res.data.job_id;
+      iniciarPolling(jobId, banco, nomeEmpresa, mesAno);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erro ao processar o arquivo.');
-    } finally { setLoading(false); }
+      toast.error(err.response?.data?.detail || 'Erro ao enviar o arquivo.');
+      setLoading(false);
+    }
+  };
+
+  const iniciarPolling = (jobId, banco, nomeEmpresa, mesAno) => {
+    pararPolling(); // por segurança, garante que não há outro polling ativo
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await consultarStatusJob(jobId);
+        const { status, resultado, erro } = res.data;
+
+        if (status === 'concluido') {
+          pararPolling();
+          setLancamentos(resultado.lancamentos);
+          setMeta({ banco, nomeEmpresa, mesAno });
+          setEtapa('revisao');
+          toast.success(resultado.total + ' lançamentos encontrados!');
+          setLoading(false);
+        } else if (status === 'erro') {
+          pararPolling();
+          toast.error(erro || 'Erro ao processar o arquivo.');
+          setLoading(false);
+        }
+        // status === 'processando' -> não faz nada, continua o polling
+      } catch (err) {
+        pararPolling();
+        toast.error('Erro ao consultar o status do processamento.');
+        setLoading(false);
+      }
+    }, INTERVALO_POLLING_MS);
   };
 
   const handleExportar = async () => {

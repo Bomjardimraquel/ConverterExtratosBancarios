@@ -1,12 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
-from parsers.factory import get_parser
+from fastapi.responses import StreamingResponse
+from rq.job import Job
+from rq.exceptions import NoSuchJobError
+
+from parsers.factory import get_parser  # mantido: usado para validar o parser antes de enfileirar
+from tasks import processar_extrato_job
+from utils.fila import conexao_redis, fila_processamento
 from utils.exportar_excel import gerar_excel
 from utils.contas import CONTAS, BANCO_CONTA
 from pydantic import BaseModel
 from typing import List, Optional
 import io
-import json
 
 router = APIRouter()
 
@@ -29,7 +33,7 @@ def listar_bancos():
     return {"bancos": bancos, "contas": CONTAS}
 
 
-# ── Upload e processamento do extrato ───────────────────────────────────────
+# ── Upload: agora só enfileira o job e devolve na hora ──────────────────────
 @router.post("/processar")
 async def processar_extrato(
     arquivo: UploadFile = File(...),
@@ -48,25 +52,46 @@ async def processar_extrato(
     if not conta_banco:
         raise HTTPException(status_code=400, detail=f"Banco '{banco}' não reconhecido.")
 
+    # Validação rápida: garante que existe parser pra esse banco ANTES de
+    # enfileirar. Erros de "banco não suportado" continuam respondendo na
+    # hora (400), sem precisar esperar o worker pra descobrir isso.
     try:
-        parser = get_parser(banco, conta_banco)
-        lancamentos = parser.parse(conteudo)
+        get_parser(banco, conta_banco)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao processar PDF: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Parser inválido para o banco '{banco}': {str(e)}")
 
-    if not lancamentos:
-        raise HTTPException(
-            status_code=422,
-            detail="Nenhum lançamento encontrado no PDF. Verifique se o banco selecionado está correto."
-        )
+    job = fila_processamento.enqueue(
+        processar_extrato_job,
+        conteudo,
+        banco,
+        conta_banco,
+        nome_empresa,
+        mes_ano,
+        job_timeout="10m",  # ajuste conforme o tamanho esperado dos PDFs (OCR pode precisar de mais)
+    )
 
-    return {
-        "total": len(lancamentos),
-        "banco": banco,
-        "nome_empresa": nome_empresa,
-        "mes_ano": mes_ano,
-        "lancamentos": [l if isinstance(l, dict) else l.to_dict() for l in lancamentos],
-    }
+    return {"job_id": job.id, "status": "processando"}
+
+
+# ── Consulta de status do job ───────────────────────────────────────────────
+@router.get("/status/{job_id}")
+def consultar_status(job_id: str):
+    try:
+        job = Job.fetch(job_id, connection=conexao_redis)
+    except NoSuchJobError:
+        raise HTTPException(status_code=404, detail="Job não encontrado.")
+
+    if job.is_finished:
+        return {"status": "concluido", "resultado": job.result}
+
+    if job.is_failed:
+        # job.exc_info tem o traceback completo (útil pra você debugar);
+        # devolvemos só a última linha pro usuário final não ver isso tudo.
+        erro_resumido = (job.exc_info or "Erro desconhecido").strip().splitlines()[-1]
+        return {"status": "erro", "erro": erro_resumido}
+
+    # queued (na fila, ainda não começou) ou started (rodando agora)
+    return {"status": "processando"}
 
 
 # ── Exportar Excel com lançamentos (possivelmente editados) ─────────────────
@@ -96,7 +121,6 @@ def exportar_excel(payload: ExportarRequest):
     dados = [l.model_dump() for l in payload.lancamentos]
     excel_bytes = gerar_excel(dados, payload.nome_empresa, payload.banco, payload.mes_ano)
 
-    # Nome do arquivo: empresa + mês/ano
     partes = [p for p in [payload.nome_empresa, payload.mes_ano] if p]
     nome_arquivo = ("_".join(partes) if partes else f"lancamentos_{payload.banco}").replace(" ", "_") + ".xlsx"
 
