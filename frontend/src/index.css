@@ -18,3 +18,93 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
 #root { min-height: 100vh; display: flex; flex-direction: column; }
 button { cursor: pointer; font-family: var(--font-body); }
 input, select { font-family: var(--font-body); }
+
+/* ── Login ─────────────────────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--surface);
+}
+.login-lado-texto, .login-lado-card {
+  flex: 1 1 480px;
+  display: flex;
+  align-items: center;
+  padding: 3rem clamp(1.5rem, 6vw, 5rem);
+}
+.login-lado-texto { justify-content: flex-start; }
+.login-lado-card { justify-content: center; background: var(--bg); }
+.login-titulo {
+  font-family: Georgia, serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 0.6rem;
+  max-width: 420px;
+}
+.login-subtitulo {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  max-width: 380px;
+  line-height: 1.5;
+}
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 2.25rem 2rem;
+}
+.login-erro {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.82rem;
+  color: var(--danger);
+  margin-bottom: 1.1rem;
+}
+.login-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+.login-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface2);
+  outline: none;
+}
+.login-input:focus { border-color: var(--blue); }
+.login-toggle-senha {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text-muted);
+  font-size: 0.78rem; font-weight: 600; padding: 0;
+}
+.login-manter {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.82rem; color: var(--text-muted);
+  margin: 1rem 0 1.3rem;
+}
+.login-botao {
+  width: 100%;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  color: #fff; border: none; border-radius: var(--radius-sm);
+  font-weight: 700; font-size: 0.92rem;
+  box-shadow: 0 6px 20px rgba(75,184,232,0.3);
+}
+.login-botao:disabled { opacity: 0.7; cursor: not-allowed; }
+
+@media (max-width: 860px) {
+  .login-lado-texto { padding-bottom: 1rem; }
+  .login-lado-card { padding-top: 1rem; }
+}

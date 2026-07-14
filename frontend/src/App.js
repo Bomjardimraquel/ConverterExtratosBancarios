@@ -5,7 +5,6 @@ import Header from './components/Header';
 import UploadStep from './components/UploadStep';
 import TabelaRevisao from './components/TabelaRevisao';
 import Login from './components/Login';
-import Landing from './components/Landing';
 import { processarExtrato, consultarStatusJob, exportarExcel } from './utils/api';
 
 const INTERVALO_POLLING_MS = 2000;
@@ -122,7 +121,7 @@ export default function App() {
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{ style: { fontFamily: 'Open Sans, sans-serif', fontSize: '0.9rem', borderRadius: '10px' } }} />
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/app" element={<RotaProtegida />} />
         <Route path="*" element={<Navigate to="/" replace />} />
