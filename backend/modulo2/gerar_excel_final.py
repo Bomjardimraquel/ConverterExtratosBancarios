@@ -7,6 +7,7 @@ Gerador do Excel final do Módulo 2 — reutilizável pra qualquer empresa.
   correspondência no extrato (resultado_pendencias()).
 - Aba "Legenda": explica as cores.
 """
+import re
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -25,11 +26,25 @@ ORIGEM_LEGIVEL = {
     "regra_texto": "Regra de texto", "simples": "Revisar",
 }
 
+# Traço usado como SEPARADOR DE FRASE (tem espaço dos dois lados, tipo
+# "CDL - CDL MENSAL" ou "Casado — confiável") — vira dois-pontos, que é o
+# que normalmente faz sentido nesse lugar (rótulo: explicação). Não mexe
+# em traço colado dentro de número (tipo "0001-53" de CNPJ, ou código de
+# conta), porque aí não tem espaço nenhum ao redor e o padrão não bate.
+_TRAVESSAO_RE = re.compile(r"\s+[-–—]\s+")
+
+
+def _remover_travessoes(texto) -> str:
+    if not texto:
+        return texto
+    texto = _TRAVESSAO_RE.sub(": ", str(texto))
+    return re.sub(r"\s{2,}", " ", texto).strip()
+
 
 def _cabecalho(ws, titulo, headers, n_cols_titulo):
     col_fim = get_column_letter(n_cols_titulo)
     ws.merge_cells(f"A1:{col_fim}1")
-    ws["A1"] = titulo
+    ws["A1"] = _remover_travessoes(titulo)
     ws["A1"].font = Font(bold=True, size=13, color=COR_HEADER)
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
@@ -68,12 +83,12 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
             fill = PatternFill("solid", fgColor=COR_CASADO)
 
         vals = [
-            r.data.strftime("%d/%m/%Y"), r.descricao,
+            r.data.strftime("%d/%m/%Y"), _remover_travessoes(r.descricao),
             "Crédito" if r.tipo == "C" else "Débito",
             r.conta_debito, r.conta_credito,
             r.terceiro_debito, r.terceiro_credito,
             r.valor, ORIGEM_LEGIVEL.get(r.origem, r.origem),
-            r.aviso if not ja_baixado else "",
+            _remover_travessoes(r.aviso) if not ja_baixado else "",
         ]
         for col, val in enumerate(vals, 1):
             cell = ws.cell(row=row_idx, column=col, value=val)
@@ -114,11 +129,11 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
     if pendencias:
         wsp = wb.create_sheet("Pendências")
         p_headers = ["Data", "Valor (R$)", "Tipo", "Descrição", "Aviso"]
-        _cabecalho(wsp, "Itens sem correspondência — conferir manualmente", p_headers, len(p_headers))
+        _cabecalho(wsp, "Itens sem correspondência (conferir manualmente)", p_headers, len(p_headers))
         for i, r in enumerate(pendencias, 3):
             fill = PatternFill("solid", fgColor=COR_REVISAO)
             vals = [r.data.strftime("%d/%m/%Y"), r.valor, "Crédito" if r.tipo == "C" else "Débito",
-                    r.descricao, r.aviso]
+                    _remover_travessoes(r.descricao), _remover_travessoes(r.aviso)]
             for col, val in enumerate(vals, 1):
                 cell = wsp.cell(row=i, column=col, value=val)
                 cell.fill = fill
@@ -136,14 +151,14 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
     ws2["A1"] = "Cor"; ws2["B1"] = "Significado"
     ws2["A1"].font = ws2["B1"].font = Font(bold=True)
     legendas = [
-        (COR_CASADO, "Casado com despesa, título ou regra de texto — confiável, pode importar direto"),
-        (COR_AJUSTAVEL, "Imposto, folha ou aluguel — classificação provável, mas confira: pode precisar dividir entre contas, corrigir ou apagar"),
-        (COR_JA_BAIXADO, "Título já baixado no Prosoft (nome+valor+data batem) — confirmar e descartar, não reimportar"),
-        (COR_REVISAO, "Classificação simples (banco x caixa) — sem terceiro, precisa revisar antes de importar"),
+        (COR_CASADO, "Casado com despesa, título ou regra de texto (confiável, pode importar direto)"),
+        (COR_AJUSTAVEL, "Imposto, folha ou aluguel: classificação provável, mas confira (pode precisar dividir entre contas, corrigir ou apagar)"),
+        (COR_JA_BAIXADO, "Título já baixado no Prosoft (nome+valor+data batem): confirmar e descartar, não reimportar"),
+        (COR_REVISAO, "Classificação simples (banco x caixa), sem terceiro: precisa revisar antes de importar"),
     ]
     for i, (cor, texto) in enumerate(legendas, 2):
         ws2.cell(row=i, column=1).fill = PatternFill("solid", fgColor=cor)
-        ws2.cell(row=i, column=2, value=texto)
+        ws2.cell(row=i, column=2, value=_remover_travessoes(texto))
     ws2.column_dimensions['A'].width = 10
     ws2.column_dimensions['B'].width = 85
 

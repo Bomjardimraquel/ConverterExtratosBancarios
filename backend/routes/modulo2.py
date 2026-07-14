@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from rq.job import Job
 from rq.exceptions import NoSuchJobError
 
-from modulo2.tasks_modulo2 import processar_completo_job, PASTA_SAIDA
+from modulo2.tasks_modulo2 import PASTA_SAIDA
 from utils.fila import conexao_redis, fila_processamento
 
 router = APIRouter()
@@ -20,12 +20,21 @@ async def processar_completo(
     extrato: UploadFile = File(...),
     arquivo_titulos: UploadFile = File(...),
     arquivo_despesas_ou_razao: UploadFile = File(...),
+    arquivo_modelo_classificado: UploadFile = File(None),
 ):
     """
     Recebe extrato (PDF do banco) + relatório de títulos (.xls) +
-    despesa classificada OU razão do Prosoft (detectado automaticamente
-    pela estrutura do arquivo — não precisa dizer qual é qual) e enfileira
-    o job que roda o MotorCruzamento e gera o Excel final.
+    arquivo de despesas — detectado automaticamente entre 3 formatos:
+      - despesa já classificada (Débito/Crédito preenchidos)
+      - razão do Prosoft (SpreadsheetML)
+      - movimento bruto (cru, com Favorecido, sem Débito/Crédito) —
+        classificado usando as regras_texto/regras_extras já salvas na
+        config da empresa (o aprendizado virou permanente, igual as
+        regras do extrato). `arquivo_modelo_classificado` é OPCIONAL
+        aqui: só precisa mandar se quiser ENSINAR fornecedor novo que
+        as regras salvas ainda não reconhecem (um mês já classificado,
+        usado como "gabarito" só pra essa rodada).
+    e enfileira o job que roda o MotorCruzamento e gera o Excel final.
     """
     if tipo_titulos not in ("receber", "pagar"):
         raise HTTPException(400, "tipo_titulos precisa ser 'receber' ou 'pagar'.")
@@ -39,6 +48,7 @@ async def processar_completo(
     extrato_conteudo = await extrato.read()
     titulos_conteudo = await arquivo_titulos.read()
     despesas_conteudo = await arquivo_despesas_ou_razao.read()
+    modelo_conteudo = await arquivo_modelo_classificado.read() if arquivo_modelo_classificado else None
 
     if not extrato_conteudo:
         raise HTTPException(400, "Extrato veio vazio.")
@@ -47,12 +57,21 @@ async def processar_completo(
     if not despesas_conteudo:
         raise HTTPException(400, "Arquivo de despesa/razão veio vazio.")
 
+    # Passa o caminho da função como STRING explícita ("modulo2.tasks_modulo2.
+    # processar_completo_job"), em vez de passar o objeto função direto.
+    # Motivo: passando o objeto, o RQ tenta montar esse mesmo caminho
+    # sozinho (lendo func.__module__), e com a função dentro de uma
+    # subpasta (modulo2/) isso saiu errado — o Redis guardava só
+    # "processar_completo_job", sem o caminho da pasta na frente, e o
+    # worker (processo separado) não achava a função na hora de rodar.
+    # Escrevendo o caminho na mão, elimina essa ambiguidade de vez.
     job = fila_processamento.enqueue(
-        processar_completo_job,
+        "modulo2.tasks_modulo2.processar_completo_job",
         empresa, banco, ano,
         extrato_conteudo, titulos_conteudo, tipo_titulos, despesas_conteudo,
-        nome_empresa, mes_ano,
-        job_timeout="10m",
+        nome_empresa, mes_ano, modelo_conteudo,
+        job_timeout="15m",
+        result_ttl=3600,  # 1h pra consultar o resultado, em vez dos 500s padrão
     )
     return {"job_id": job.id, "status": "processando"}
 

@@ -183,7 +183,7 @@
         ],
         "conta_debito": "53074",
         "confianca": "revisar_manual",
-        "descricao_template": "Pg. ref. {favorecido} - {descricao}"
+        "descricao_template": "Pg. ref. {favorecido}: {descricao}"
       },
       {
         "contem": [
@@ -208,6 +208,222 @@
         "conta_debito": "21505",
         "confianca": "revisar_manual",
         "aviso": "Conferir número do boleto manualmente"
+      },
+      {
+        "contem": [
+          "ALPHARAD"
+        ],
+        "conta_debito": "53081",
+        "confianca": "media",
+        "aviso": "Aprendido do movimento de maio/2026 (conferir se ainda se aplica)"
+      },
+      {
+        "contem": [
+          "CASA DO DOUTOR"
+        ],
+        "conta_debito": "53081",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "CDC"
+        ],
+        "conta_debito": "53075",
+        "confianca": "revisar_manual",
+        "aviso": "Sigla curta (CDC): conferir se não está pegando outra coisa"
+      },
+      {
+        "contem": [
+          "CMT"
+        ],
+        "conta_debito": "53164",
+        "confianca": "revisar_manual",
+        "aviso": "Sigla curta (CMT): conferir se não está pegando outra coisa"
+      },
+      {
+        "contem": [
+          "COELBA"
+        ],
+        "conta_debito": "53059",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "DEJAMARO"
+        ],
+        "conta_debito": "53081",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "CORREIOS"
+        ],
+        "conta_debito": "53070",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "ESCALLO"
+        ],
+        "conta_debito": "53106",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "FELIX INFORMATICA"
+        ],
+        "conta_debito": "53050",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "GENESIS TECNOLOGIA"
+        ],
+        "conta_debito": "53106",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "GRANITEX"
+        ],
+        "conta_debito": "53075",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "J C ROCHA"
+        ],
+        "conta_debito": "53075",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "KRETTI"
+        ],
+        "conta_debito": "53050",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "LABCEL"
+        ],
+        "conta_debito": "53081",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "VASCONCELLOS"
+        ],
+        "conta_debito": "53136",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "MARCELO VAZ LEAES"
+        ],
+        "conta_debito": "53106",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "MASTERCARD"
+        ],
+        "conta_debito": "53016",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "MERCADO PAGO"
+        ],
+        "conta_debito": "53050",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "MERSALUC"
+        ],
+        "conta_debito": "53103",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "MF CLEAN"
+        ],
+        "conta_debito": "53105",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "ONI"
+        ],
+        "conta_debito": "53057",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "PRO RAD"
+        ],
+        "conta_debito": "53081",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "RONER CLAUDIO"
+        ],
+        "conta_debito": "53073",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "RXL"
+        ],
+        "conta_debito": "53081",
+        "confianca": "revisar_manual",
+        "aviso": "Sigla curta (RXL): conferir se não está pegando outra coisa"
+      },
+      {
+        "contem": [
+          "SANDRO FERREIRA DA COSTA"
+        ],
+        "conta_debito": "53075",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "TADMEDICAL"
+        ],
+        "conta_debito": "53081",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "UNIMED EXTREMO SUL"
+        ],
+        "conta_debito": "21759",
+        "confianca": "media",
+        "aviso": "Mensalidade Unimed (despesa), não confundir com repasse recebido da Unimed"
+      },
+      {
+        "contem": [
+          "VIVA POSITIVAMENTE"
+        ],
+        "conta_debito": "53105",
+        "confianca": "media"
+      },
+      {
+        "contem": [
+          "WMS SUPERMERCADOS"
+        ],
+        "conta_debito": "53103",
+        "confianca": "revisar_manual",
+        "aviso": "Aprendido com só 2 exemplos (maio/2026): às vezes é material de limpeza (53050) em vez de alimentação, conferir a descrição"
+      },
+      {
+        "contem": [
+          "CLARO"
+        ],
+        "conta_debito": "53057",
+        "confianca": "media"
       }
     ]
   },
@@ -272,7 +488,7 @@
         "debito_D": "53103",
         "descricao_dinamica": true,
         "confianca": "revisar_manual",
-        "aviso": "Categoria por tipo de estabelecimento (alimentação) - conferir se é despesa da empresa"
+        "aviso": "Categoria por tipo de estabelecimento (alimentação): conferir se é despesa da empresa"
       },
       {
         "contem": [
@@ -297,7 +513,7 @@
         "debito_D": "53053",
         "descricao_dinamica": true,
         "confianca": "revisar_manual",
-        "aviso": "Aluguel - confirmar se é sempre o mesmo imóvel/finalidade"
+        "aviso": "Aluguel: confirmar se é sempre o mesmo imóvel/finalidade"
       },
       {
         "contem": [

@@ -1,6 +1,6 @@
 """
-Detecção automática de tipo de arquivo (despesa classificada x razão do
-Prosoft) — substitui o campo `modo_despesas` fixo na config da empresa.
+Detecção automática de tipo de arquivo de despesa — substitui o campo
+`modo_despesas` fixo na config da empresa.
 
 Antes: a config dizia "casar" ou "desconsiderar" pra cada empresa (nomes
 que descreviam a AÇÃO do motor, não o tipo do arquivo), e o motor confiava
@@ -9,16 +9,24 @@ sempre mandou (ou errar o upload), o motor processa do jeito errado sem
 avisar.
 
 Agora: decide pela ESTRUTURA do próprio arquivo, sempre, pra qualquer
-empresa — não precisa mais do campo `modo_despesas` na config.
+empresa. Três formatos possíveis:
+  - "despesa_classificada": .xlsx de verdade, 6 colunas (Data / Razão
+    Social / Descrição / Valor / Débito / Crédito) — já vem com a conta
+    escolhida na mão.
+  - "razao_prosoft": SpreadsheetML — um XML disfarçado de .xls (o Prosoft
+    usa a extensão .xls, mas o conteúdo é texto XML, não o formato
+    binário/zip real de Excel).
+  - "movimento_bruto": .xlsx de verdade também, mas com 13 colunas
+    (D. Previsão / D. Realização / ... / Favorecido / Razão Social /
+    Forma Pagamento / ... / Descrição / Observação) — SEM Débito/Crédito.
+    Esse é o arquivo cru que o escritório recebe todo mês; precisa do
+    aprendizado_despesas.py (+ um mês já classificado de referência) pra
+    virar despesa classificada.
 
-Os dois formatos são bem diferentes por natureza, o que torna a detecção
-segura:
-  - Despesa classificada ("despesa_classificada"): .xlsx de verdade (é
-    um arquivo ZIP — todo .xlsx começa com os bytes b'PK\\x03\\x04'), com
-    colunas Data / Razão Social / Descrição / Valor / Débito / Crédito.
-  - Razão do Prosoft ("razao_prosoft"): SpreadsheetML — um XML disfarçado
-    de .xls (o Prosoft usa a extensão .xls, mas o conteúdo é texto XML,
-    não o formato binário/zip real de Excel).
+Como "despesa_classificada" e "movimento_bruto" são os dois arquivos ZIP
+de verdade (mesma assinatura de bytes), a distinção entre os dois só dá
+pra fazer olhando o CABEÇALHO por dentro — "Favorecido" só existe no
+formato bruto.
 """
 import io
 from openpyxl import load_workbook
@@ -30,20 +38,34 @@ except ImportError:
     from modelos import Despesa
     from parser_razao import parse_razao_ja_lancado
 
+
+def _eh_movimento_bruto(conteudo: bytes) -> bool:
+    """Espia o cabeçalho do xlsx: se tiver uma coluna 'Favorecido', é o
+    formato cru (movimento_bruto), não o classificado."""
+    try:
+        wb = load_workbook(io.BytesIO(conteudo), data_only=True, read_only=True)
+        ws = wb.active
+        primeira_linha = next(ws.iter_rows(max_row=1, values_only=True), ())
+        cabecalho = " ".join(str(c or "") for c in primeira_linha).upper()
+        return "FAVORECIDO" in cabecalho
+    except Exception:
+        return False
+
+
 def detectar_tipo_arquivo(conteudo: bytes) -> str:
     """
-    Devolve 'despesa_classificada' ou 'razao_prosoft' — nomeados pelo
-    TIPO do arquivo, não pela ação que o motor faz com ele (o antigo
-    `modo_despesas` usava "casar"/"desconsiderar", que descreviam a ação
-    e exigiam conhecer o código pra entender o que representavam).
+    Devolve 'despesa_classificada', 'movimento_bruto' ou 'razao_prosoft'
+    — nomeados pelo TIPO do arquivo, não pela ação que o motor faz com
+    ele (o antigo `modo_despesas` usava "casar"/"desconsiderar", que
+    descreviam a ação e exigiam conhecer o código pra entender o que
+    representavam).
 
-    Levanta ValueError se não conseguir identificar nenhum dos dois
-    formatos — nesse caso o arquivo deve ser rejeitado no upload, não
-    adivinhado.
+    Levanta ValueError se não conseguir identificar nenhum dos formatos
+    — nesse caso o arquivo deve ser rejeitado no upload, não adivinhado.
     """
     # .xlsx de verdade é um arquivo ZIP — começa sempre com esses 4 bytes
     if conteudo[:4] == b"PK\x03\x04":
-        return "despesa_classificada"
+        return "movimento_bruto" if _eh_movimento_bruto(conteudo) else "despesa_classificada"
 
     # Razão do Prosoft: XML disfarçado de .xls. Tenta decodificar como
     # texto e procura a assinatura do SpreadsheetML.
@@ -150,16 +172,23 @@ def _carregar_despesas_xlsx(caminho_ou_bytes) -> list:
 def carregar_arquivo_despesas_ou_razao(caminho_ou_bytes):
     """
     Ponto de entrada único. Devolve uma tupla (modo_despesas, dados):
-      - ("despesa_classificada", list[Despesa])              — despesa classificada
-      - ("razao_prosoft", list[DespesaJaLancada])  — razão do Prosoft
+      - ("despesa_classificada", list[Despesa])     — despesa classificada
+      - ("razao_prosoft", list[DespesaJaLancada])   — razão do Prosoft
+      - ("movimento_bruto", bytes)                  — arquivo cru, sem
+        classificação; devolve os BYTES originais porque esse formato
+        precisa do aprendizado_despesas.py + um arquivo de referência já
+        classificado, que essa função não tem acesso — quem chama decide
+        o que fazer (ver tasks_modulo2.py).
 
     Uso típico na rota/integração:
 
         modo, dados = carregar_arquivo_despesas_ou_razao(caminho)
         if modo == "despesa_classificada":
-            resultado = motor.cruzar(lancamentos, despesas=dados, modo_despesas=modo)
-        else:
-            resultado = motor.cruzar(lancamentos, despesas_ja_lancadas=dados, modo_despesas=modo)
+            resultado = motor.cruzar(lancamentos, despesas=dados, modo_despesas="despesa_classificada")
+        elif modo == "razao_prosoft":
+            resultado = motor.cruzar(lancamentos, despesas_ja_lancadas=dados, modo_despesas="razao_prosoft")
+        else:  # "movimento_bruto" — ver tasks_modulo2.py pro fluxo completo
+            ...
     """
     if isinstance(caminho_ou_bytes, (bytes, bytearray)):
         conteudo = caminho_ou_bytes
@@ -179,6 +208,9 @@ def carregar_arquivo_despesas_ou_razao(caminho_ou_bytes):
                 caminho_tmp = tmp.name
             return "razao_prosoft", parse_razao_ja_lancado(caminho_tmp)
         return "razao_prosoft", parse_razao_ja_lancado(caminho_ou_bytes)
+
+    if modo == "movimento_bruto":
+        return "movimento_bruto", conteudo
 
     # Sempre passa os BYTES (não o caminho) daqui pra frente — o openpyxl
     # rejeita qualquer caminho terminando em ".xls" só pela extensão do

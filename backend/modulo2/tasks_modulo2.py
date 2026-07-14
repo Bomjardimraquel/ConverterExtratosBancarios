@@ -17,6 +17,7 @@ from modulo2.carregador_despesas import carregar_arquivo_despesas_ou_razao
 from modulo2.carregar_titulos import carregar_titulos
 from modulo2.adaptador_lancamentos import converter_lancamentos_base
 from modulo2.gerar_excel_final import gerar_excel_final
+from modulo2.aprendizado_despesas import treinar_classificador_despesas, carregar_despesas_brutas
 
 CAMINHO_EMPRESAS_JSON = os.path.join(os.path.dirname(__file__), "config", "empresas.json")
 PASTA_SAIDA = os.path.join(os.path.dirname(__file__), "..", "arquivos_gerados")
@@ -46,6 +47,7 @@ def processar_completo_job(
     despesas_conteudo: bytes,
     nome_empresa: str = "",
     mes_ano: str = "",
+    modelo_classificado_conteudo: bytes = None,
 ) -> dict:
     """
     empresa: código da empresa no empresas.json (ex: "D08")
@@ -53,6 +55,10 @@ def processar_completo_job(
            com uma das chaves em cfg["bancos"] dessa empresa
     ano: ano do extrato (o parser do Módulo 1 só devolve "DD/MM", sem ano)
     tipo_titulos: "receber" ou "pagar"
+    modelo_classificado_conteudo: SÓ necessário quando despesas_conteudo
+        for o arquivo cru de movimento contábil (com Favorecido, sem
+        Débito/Crédito) — é o mês já classificado que serve de "gabarito"
+        pro aprendizado_despesas.py. Ignorado nos outros dois formatos.
     """
     cfg = _carregar_config_empresa(empresa)
 
@@ -77,17 +83,42 @@ def processar_completo_job(
     # 2. Relatório de títulos
     titulos = carregar_titulos(titulos_conteudo, tipo=tipo_titulos)
 
-    # 3. Despesa classificada OU razão do Prosoft — detecção automática
-    #    pela estrutura do arquivo (não precisa mais de modo_despesas na config)
+    # 3. Despesa classificada, razão do Prosoft, OU movimento bruto —
+    #    detecção automática pela estrutura do arquivo
     modo, dados_despesa = carregar_arquivo_despesas_ou_razao(despesas_conteudo)
-    kwargs_motor = (
-        {"despesas": dados_despesa} if modo == "despesa_classificada"
-        else {"despesas_ja_lancadas": dados_despesa}
-    )
+
+    despesas_nao_classificadas = []
+
+    if modo == "movimento_bruto":
+        # O arquivo de treino agora é OPCIONAL: se a empresa já tem
+        # regras_extras/regras_texto suficientes salvas na config (o
+        # "aprendizado" virou permanente, igual as regras do extrato),
+        # não precisa mandar um mês de referência toda vez — só manda de
+        # novo se quiser ENSINAR algo novo (fornecedor que ainda não
+        # existe nas regras).
+        if modelo_classificado_conteudo:
+            modelo = treinar_classificador_despesas(modelo_classificado_conteudo)
+        else:
+            modelo = {"favorecido_unico": {}, "favorecido_ambiguo": {}}
+        despesas_classificadas, despesas_nao_classificadas = carregar_despesas_brutas(
+            dados_despesa,  # bytes do arquivo cru
+            modelo,
+            regras_texto=cfg.get("regras_texto", []),
+            regras_extras=cfg.get("regras_extras", []),
+            ignorar_se_contem=cfg.get("ignorar_se_contem", []),
+        )
+        kwargs_motor = {"despesas": despesas_classificadas}
+        modo_motor = "despesa_classificada"  # pro motor, é a mesma coisa: lista de Despesa já com conta
+    else:
+        kwargs_motor = (
+            {"despesas": dados_despesa} if modo == "despesa_classificada"
+            else {"despesas_ja_lancadas": dados_despesa}
+        )
+        modo_motor = modo
 
     # 4. Cruzamento
     motor = MotorCruzamento(cfg, conta_banco=conta_banco)
-    resultado = motor.cruzar(lancamentos, titulos=titulos, modo_despesas=modo, **kwargs_motor)
+    resultado = motor.cruzar(lancamentos, titulos=titulos, modo_despesas=modo_motor, **kwargs_motor)
 
     # 5. Excel final
     os.makedirs(PASTA_SAIDA, exist_ok=True)
@@ -109,5 +140,7 @@ def processar_completo_job(
         "percentual_casado": round(100 * valor_casado / valor_total, 1) if valor_total else 0,
         "linhas_excel": stats["linhas_lancamentos"],
         "linhas_pendencias": stats["linhas_pendencias"],
+        "despesas_brutas_nao_classificadas": len(despesas_nao_classificadas),
+        "despesas_brutas_nao_classificadas_detalhe": despesas_nao_classificadas,
         "arquivo": nome_arquivo,
     }
