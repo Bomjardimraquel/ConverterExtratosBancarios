@@ -57,52 +57,96 @@ def _extrair_nome_pix(descricao: str) -> str:
     return texto[:50].strip()
 
 
+# ── Tabela de regras de formatação da descrição ─────────────────────────────
+#
+# Isso NUNCA afeta a leitura/classificação/cruzamento do extrato — é só
+# cosmético, pra deixar a descrição bonita no Excel do Módulo 1. O dado cru
+# (usado pelo Módulo 2 pra casar título/despesa) fica intacto em `.raw`,
+# separado disso.
+#
+# Cada regra é um dicionário com "tipo":
+#   "keyword"       → dispara se alguma palavra de "match" aparece na
+#                      descrição normalizada, não importa a classificação
+#   "classificacao" → dispara se `classificacao` (vinda do classificador.py)
+#                      bate exatamente com "match"
+#   "pix_recebido"  → igual "keyword", mas usa `_extrair_nome_pix` pra
+#                      montar o texto (precisa de tratamento à parte)
+#
+# Ordem importa: a primeira regra que bater é usada. Pra adicionar/corrigir
+# uma regra (ex: mudar o texto do IOF, ou criar uma pra aplicação do BB),
+# mexe só aqui — não precisa tocar em formatar_descricao().
+REGRAS_DESCRICAO = [
+    # ── Boleto ───────────────────────────────────────────────────────────
+    {
+        "tipo": "keyword",
+        "match": [
+            "boleto", "pagamento de boleto", "boleto pago", "pg. boleto",
+            "deb.tit.compe", "déb.tit.compe", "tit.compe efetivado",
+            "cheque compe", "cheque pago", "deb. pagamento de boleto",
+        ],
+        "template": "Pg. ref. boleto conf. extrato",
+    },
+
+    # ── Por classificação (vem de classificar_lancamento) ───────────────────
+    {"tipo": "classificacao", "match": "Despesas Bancárias", "template": "Vr.deb.n/cta.{banco} ref.desp bancarias"},
+    {"tipo": "classificacao", "match": "Juros",              "template": "Vr.deb.n/cta.{banco} ref.juros"},
+    {"tipo": "classificacao", "match": "IOF",                "template": "Vr.deb.n/cta.{banco} ref.iof"},
+
+    # ── Contas especiais do BB (empréstimo Giro/Pronampe, Rende Fácil) ──────
+    # Usam "Vr. ref." pros dois lados (entrada E saída) — diferente do
+    # padrão comum, onde entrada vira "Vr. recebido de..." — porque aqui
+    # não é uma receita/despesa de verdade, é só transferência de saldo.
+    {"tipo": "classificacao", "match": "Empréstimo BB (Giro/Pronampe)", "template": "Vr. ref. {descricao} conf. extrato"},
+    {"tipo": "classificacao", "match": "BB Rende Fácil (Aplicação)",    "template": "Vr. ref. {descricao} conf. extrato"},
+
+    # TODO: regras específicas do BB (aplicação automática / BB Rende Fácil
+    # etc) entram aqui — aguardando a Raquel mandar o texto/conta que ela
+    # quer pra cada uma. Exemplo de como ficaria (ajustar quando ela mandar):
+    # {
+    #     "tipo": "keyword",
+    #     "match": ["bb rende facil", "rende facil"],
+    #     "template": "Vr. ref. aplicação automática conf. extrato",
+    # },
+
+    # ── Pix recebido (usa extração de nome) ─────────────────────────────────
+    {
+        "tipo": "pix_recebido",
+        "match": [
+            "pix receb", "pix recebido", "pix - recebido",
+            "transf.recebida", "transf. receb", "cred.tr.ct",
+            "créd.tr.ct", "cred.ted", "créd.ted",
+            "pix rejeita",
+        ],
+    },
+]
+
+
 def formatar_descricao(descricao: str, valor: float, conta_banco: str, classificacao: str) -> str:
     desc_norm = normalizar(descricao)
     banco = nome_banco(conta_banco)
     eh_credito = valor >= 0
 
-    # ── Boleto ───────────────────────────────────────────────────────────────
-    kws_boleto = [
-        "boleto", "pagamento de boleto", "boleto pago", "pg. boleto",
-        "deb.tit.compe", "déb.tit.compe", "tit.compe efetivado",
-        "cheque compe", "cheque pago", "deb. pagamento de boleto",
-    ]
-    for kw in kws_boleto:
-        if kw in desc_norm:
-            return "Pg. ref. boleto conf. extrato"
+    for regra in REGRAS_DESCRICAO:
+        tipo = regra["tipo"]
 
-    # ── Despesas bancárias ───────────────────────────────────────────────────
-    if classificacao == "Despesas Bancárias":
-        return f"Vr.deb.n/cta.{banco} ref.desp bancarias"
+        if tipo == "keyword":
+            if any(kw in desc_norm for kw in regra["match"]):
+                return regra["template"]
 
-    # ── Juros ────────────────────────────────────────────────────────────────
-    if classificacao == "Juros":
-        return f"Vr.deb.n/cta.{banco} ref.juros"
+        elif tipo == "classificacao":
+            if classificacao == regra["match"]:
+                return regra["template"].format(banco=banco, descricao=descricao)
 
-    # ── IOF ──────────────────────────────────────────────────────────────────
-    if classificacao == "IOF":
-        return f"Vr.deb.n/cta.{banco} ref.iof"
+        elif tipo == "pix_recebido":
+            if any(kw in desc_norm for kw in regra["match"]):
+                nome = _extrair_nome_pix(descricao)
+                if nome:
+                    return f"Vr. ref. pix recebido de {nome} conf. extrato"
+                return "Vr. ref. pix recebido conf. extrato"
 
-    # ── Pix recebido ─────────────────────────────────────────────────────────
-    kws_pix_recebido = [
-        "pix receb", "pix recebido", "pix - recebido",
-        "transf.recebida", "transf. receb", "cred.tr.ct",
-        "créd.tr.ct", "cred.ted", "créd.ted",
-        "pix rejeita",
-    ]
-    for kw in kws_pix_recebido:
-        if kw in desc_norm:
-            nome = _extrair_nome_pix(descricao)
-            if nome:
-                return f"Vr. ref. pix recebido de {nome} conf. extrato"
-            return "Vr. ref. pix recebido conf. extrato"
-
-    # ── Outros créditos ───────────────────────────────────────────────────────
+    # ── Fallback genérico (nenhuma regra bateu) ─────────────────────────────
     if eh_credito:
         return f"Vr. recebido de {descricao} conf. extrato"
-
-    # ── Outros débitos ────────────────────────────────────────────────────────
     return f"Vr. ref. {descricao} conf. extrato"
 
 
@@ -119,12 +163,21 @@ class LancamentoBase:
         self.classificacao = resultado["classificacao"]
         self.requer_revisao = resultado["requer_revisao"]
 
+        # Texto ORIGINAL do extrato (histórico + detalhe, antes de qualquer
+        # formatação) — o Módulo 1 não usa isso (usa .descricao, formatado
+        # abaixo), mas o Módulo 2 precisa do texto bruto pra casar título e
+        # regra de texto. Ver bug 4.6 do documento de contexto: sem isso,
+        # formatar_descricao troca pagamento de boleto por uma string
+        # genérica fixa, jogando fora o nome do fornecedor.
+        self.raw = descricao
+
         self.descricao = formatar_descricao(descricao, valor, conta_banco, self.classificacao)
 
     def to_dict(self):
         return {
             "data": self.data,
             "descricao": self.descricao,
+            "raw": self.raw,
             "valor": abs(self.valor),
             "tipo": self.tipo,
             "conta_debito": self.conta_debito,

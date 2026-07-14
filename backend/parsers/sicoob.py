@@ -47,11 +47,13 @@ class ParserSicoob(ParserBase):
 
     IGNORAR_RE = re.compile(
         r"saldo\s*(do\s*dia|anterior|bloq|disponível)|resumo|"
-        r"encargos|informações|sac:|ouvidoria|cooperativa|conta:|período|"
+        r"encargos|informações|sac:|ouvidoria|cooperativa:|conta:|período|"
         r"custo efetivo|taxa cheque|vencimento|^\s*$|"
         r"histórico de movimentação|data\s+documento|"
         r"extrato conta corrente|plataforma de serviços|"
-        r"sistema de cooperativas",
+        r"sistema de cooperativas|"
+        r"https?://|sicoob\s*\|\s*internet banking|"
+        r"^\d{2}/\d{2}/\d{4},?\s*\d{2}:\d{2}",  # cabeçalho de página repetido ("10/06/2026, 10:03 ...")
         re.IGNORECASE
     )
 
@@ -64,13 +66,22 @@ class ParserSicoob(ParserBase):
     # Início de linha de lançamento
     DATA_RE      = re.compile(r"^\d{2}/\d{2}\s")
 
-    # Linhas de "lixo" que aparecem dentro do bloco de um lançamento
+    # Linhas de "lixo" que aparecem dentro do bloco de um lançamento e não
+    # carregam informação nenhuma (só rótulo). REM.:/FAV.: NÃO entram aqui
+    # de propósito: essas linhas trazem o nome de quem recebeu/remeteu a
+    # transferência (ex: "FAV.: AREUDO BARBOSA GUIMARAES") — descartar a
+    # linha inteira jogava fora justamente o nome, e nos casos em que o
+    # nome não se repetia em nenhuma linha depois, o detalhe acabava
+    # pegando por engano o nome da PRÓPRIA empresa (que aparece depois,
+    # como parte do identificador da operação) em vez do favorecido real.
+    # Ver REM_FAV_RE abaixo: a linha é mantida, só o rótulo é cortado.
     LIXO_RE = re.compile(
-        r"^(DOC\.:|SIPAG_|REM\.:|FAV\.:|NOME:|CPF CNPJ:|"
-        r"Recebimento Pix|Pagamento Pix|Transferência Pix|"
-        r"ARANDU ASSISTENCIA|07\.763\.914)",
+        r"^(DOC\.:|SIPAG_|NOME:|CPF CNPJ:|"
+        r"Recebimento Pix|Pagamento Pix|Transferência Pix)",
         re.IGNORECASE
     )
+    # REM.: / FAV.: — mantém a linha, corta só o rótulo
+    REM_FAV_RE = re.compile(r"^(?:REM\.:|FAV\.:)\s*", re.IGNORECASE)
     CPFCNPJ_RE = re.compile(
         r"^[\*\d]{3}\.[\*\d]{3}\.[\*\d]{3}|^\d{2}\.\d{3}\.\d{3}"
     )
@@ -240,6 +251,11 @@ class ParserSicoob(ParserBase):
                         or self.CPFCNPJ_RE.match(prox)
                         or re.match(r"^\d{2}\.\d{3}\.\d{3}", prox)):
                     i += 1; continue
+                m_rf = self.REM_FAV_RE.match(prox)
+                if m_rf:
+                    prox = prox[m_rf.end():].strip()
+                    if not prox:
+                        i += 1; continue
                 if detalhe is None:
                     detalhe = prox
                 i += 1
@@ -279,7 +295,18 @@ class ParserSicoob(ParserBase):
 
             data = m.group(1)
             resto = linha[m.end():].strip()
-            resto = re.sub(r"^[\w/\-\.]+\s+", "", resto, count=1)
+            # A coluna "Documento" normalmente é um token só (número,
+            # "Pix", "MASTERCARD" etc) e por isso um strip de UM token já
+            # bastava. Mas o código de aplicação/resgate automático de RDC
+            # vem em mais de um token ("RDC AUT", "64 - 1") — e como
+            # "RDC AUT" começa igual ao histórico "RDC AUTOMÁTICO" que vem
+            # logo depois, sobrava um pedaço solto ("AUT RDC AUTOMÁTICO",
+            # "- 1 RESGATE RDC AUTOMÁTICO") grudado no início do histórico.
+            m_doc_multi = re.match(r"^(?:\d+\s*-\s*\d+|RDC\s+AUT)\s+", resto)
+            if m_doc_multi:
+                resto = resto[m_doc_multi.end():].strip()
+            else:
+                resto = re.sub(r"^[\w/\-\.]+\s+", "", resto, count=1)
 
             m_val = self.VALOR_CD_RE.search(linha)
             if not m_val:
@@ -297,22 +324,33 @@ class ParserSicoob(ParserBase):
             ).strip()
             historico = re.sub(r"^R\$\s*", "", historico).strip()
 
+            # ANTES: só capturava a linha de detalhe se começasse com
+            # REM./FAV./Transferência/Recebimento/Pagamento — detalhe de
+            # boleto/título ("MAT ESCRITORIO", "MENSALIDADE UNIMED 05.2026")
+            # é texto livre, não bate com nenhum desses prefixos, e sumia
+            # sem nunca entrar no histórico.
+            # AGORA: captura qualquer linha até o próximo lançamento/valor,
+            # só pulando CPF/CNPJ mascarado solto e "DOC.:" (que não
+            # agregam nome nenhum).
             detalhes = []
             while i < len(linhas):
                 prox = linhas[i].strip()
-                if not prox or re.match(r"^\d{2}/\d{2}\s", prox) or self.IGNORAR_RE.search(prox):
+                if not prox:
+                    i += 1
+                    continue
+                if re.match(r"^\d{2}/\d{2}\s", prox) or self.IGNORAR_RE.search(prox):
                     break
                 if self.VALOR_CD_RE.search(prox):
                     break
-                if re.match(r"^(REM\.|FAV\.|Transferência|Recebimento|Pagamento|\*{3}\.)", prox):
-                    if not re.match(r"^\*{3}\.|\\bDOC\.", prox):
-                        detalhes.append(prox)
+                if re.match(r"^\*{3}\.\d{3}\.\d{3}-\*{2}\s*$", prox) or re.match(r"^DOC\.:", prox, re.IGNORECASE):
                     i += 1
-                else:
-                    break
+                    continue
+                detalhes.append(prox)
+                i += 1
 
             if detalhes:
-                detalhe_txt = detalhes[0].replace("REM.:", "").replace("FAV.:", "").strip()
+                detalhe_txt = " ".join(detalhes)
+                detalhe_txt = detalhe_txt.replace("REM.:", "").replace("FAV.:", "").strip()
                 if len(detalhe_txt) > 3:
                     historico = historico + " - " + detalhe_txt
 

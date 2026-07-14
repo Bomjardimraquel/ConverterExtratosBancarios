@@ -27,7 +27,10 @@ class ParserBB(ParserBase):
 
     ── MODELO 2 (autoatendimento web) ──────────────────────────────────────
     "DD/MM/AAAA  0000  14024  732 Cielo Vendas Crédito  57.081.504  9.056,75 C  26.838,44 C"
-    Indicador C/D explícito no final.
+    Indicador C/D explícito no final. Cada lançamento vem seguido de uma ou
+    mais linhas de detalhe ("DD/MM HH:MM texto") com o favorecido/pagador —
+    ESSENCIAL de preservar (nome de fornecedor, nome de quem pagou o PIX
+    etc.), não é só ruído.
     """
 
     IGNORAR_RE = re.compile(
@@ -63,6 +66,14 @@ class ParserBB(ParserBase):
     def _parse_modelo1(self, linhas: List[str]) -> List[LancamentoBase]:
         resultado = []
         n = len(linhas)
+        # Linhas já usadas como detalhe-depois-do-valor de um lançamento
+        # anterior — sem isso, essa mesma linha podia ser reaproveitada
+        # (errado) como se fosse o RÓTULO do lançamento seguinte. Foi
+        # assim que "20/04 16:35 CEF MATRIZ" (detalhe do Pix - Enviado de
+        # R$382,40) acabou virando rótulo do "Cap Giro Dig Amortização"
+        # de R$5.238,79 logo depois — dois lançamentos diferentes
+        # misturados num só.
+        linhas_consumidas: set = set()
 
         for i, linha in enumerate(linhas):
             linha = linha.strip()
@@ -106,7 +117,7 @@ class ParserBB(ParserBase):
                 continue
 
             # ── Extrai histórico ─────────────────────────────────────────
-            historico = self._historico_modelo1(linhas, i)
+            historico = self._historico_modelo1(linhas, i, linhas_consumidas)
             if not historico or self.IGNORAR_RE.search(historico):
                 continue
 
@@ -121,18 +132,40 @@ class ParserBB(ParserBase):
 
         return resultado
 
-    def _historico_modelo1(self, linhas: List[str], i_valor: int) -> str:
+    def _historico_modelo1(self, linhas: List[str], i_valor: int, linhas_consumidas: set) -> str:
         """
-        Tenta extrair o histórico para a linha de valor em posição i_valor.
+        Extrai o histórico para a linha de valor em posição i_valor.
 
-        Ordem de busca:
-        1. Linha anterior ao valor que seja histórico (não data sozinha, não número só)
-        2. Parte textual da linha de data+histórico (padrão B)
-        3. Texto da própria linha de valor (após lote/doc)
+        ANTES: parava assim que achava QUALQUER candidato de histórico (o
+        rótulo genérico "Pix - Recebido", "Cheque Compensado" etc na linha
+        i-1/i-2) e nunca olhava pro detalhe de verdade (nome de quem pagou,
+        CNPJ, número do documento), que em boa parte dos extratos reais do
+        BB vem colado na PRÓPRIA linha do valor (padrão A: "lote doc
+        DD/MM HH:MM cnpj NOME - valor(+/-)") ou numa linha DEPOIS dela
+        (padrão B: "Cobrança referente...", "Número: 852745", "Rende
+        Facil" etc). Resultado: raw saía só "Pix - Recebido", sem o nome
+        do fornecedor/pagador — exatamente o dado que o Módulo 2 usa pra
+        casar título/despesa.
+
+        AGORA: monta "rótulo - detalhe", buscando o detalhe tanto na
+        própria linha do valor quanto (se ela não tiver nada) na linha
+        seguinte.
         """
         linha_val = linhas[i_valor].strip()
+        m_val_local = self.VALOR_M1_RE.search(linha_val)
+        texto_antes_valor = linha_val[:m_val_local.start()].strip()
 
-        # Candidatos: i-1 e i-2
+        # Detalhe embutido na própria linha do valor (padrão A): tira lote
+        # e documento (tokens numéricos/com ponto do início) e o que
+        # sobrar — se não for só número/lixo — é o detalhe de verdade
+        # (data/hora, CNPJ/CPF, nome).
+        detalhe_embutido = re.sub(r"^(?:[\d.]{4,}\s+){0,3}", "", texto_antes_valor).strip()
+        detalhe_embutido = re.sub(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", "", detalhe_embutido).strip()
+        if re.match(r"^[\d\s./\-]*$", detalhe_embutido):
+            detalhe_embutido = ""
+
+        # Candidatos de rótulo: i-1 e i-2
+        rotulo = None
         for delta in [1, 2]:
             idx = i_valor - delta
             if idx < 0:
@@ -140,26 +173,46 @@ class ParserBB(ParserBase):
             cand = linhas[idx].strip()
             if not cand or self.IGNORAR_RE.search(cand):
                 continue
-            # Se for só data → não é histórico
+            # já é linha de valor de OUTRO lançamento — não é rótulo daqui
+            if self.VALOR_M1_RE.search(cand):
+                continue
+            # já foi usada como detalhe-depois-do-valor de outro lançamento
+            if idx in linhas_consumidas:
+                continue
             if re.match(r"^\d{2}/\d{2}/\d{4}\s*$", cand):
                 continue
-            # Se for "DD/MM/AAAA Histórico" → extrai histórico
             m = re.match(r"^\d{2}/\d{2}/\d{4}\s+(.+)", cand)
             if m:
-                return m.group(1).strip()
-            # Se for linha de só números/lote → pula
-            if re.match(r"^[\d\s\./\-]+$", cand):
+                rotulo = m.group(1).strip()
+                break
+            if re.match(r"^[\d\s./\-]+$", cand):
                 continue
-            # Linha de histórico puro
-            return cand
+            rotulo = cand
+            break
 
-        # Fallback: texto na linha do valor após lote/doc/cnpj
-        texto = linha_val[:self.VALOR_M1_RE.search(linha_val).start()].strip()
-        # Remove lote (4-5 dígitos) e doc numérico do início
-        texto = re.sub(r"^(?:\d{4,6}\s+){1,3}", "", texto).strip()
-        # Remove CNPJ
-        texto = re.sub(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", "", texto).strip()
-        return texto if len(texto) > 3 else ""
+        if rotulo is None:
+            # Não achou rótulo nas linhas anteriores — usa o que sobrou
+            # da própria linha do valor (fallback antigo).
+            rotulo = detalhe_embutido or texto_antes_valor
+            detalhe_embutido = ""
+
+        historico = rotulo
+        if detalhe_embutido:
+            historico = f"{historico} - {detalhe_embutido}"
+        elif i_valor + 1 < len(linhas):
+            # Padrão B: detalhe (nome do fornecedor, "Cobrança referente",
+            # "Número: ...") vem numa linha DEPOIS da linha do valor.
+            prox = linhas[i_valor + 1].strip()
+            eh_novo_lancamento = re.match(r"^\d{2}/\d{2}/\d{4}\s*$", prox) or \
+                re.match(r"^\d{2}/\d{2}/\d{4}\s+.+", prox)
+            if (prox and not self.IGNORAR_RE.search(prox)
+                    and not eh_novo_lancamento
+                    and not self.VALOR_M1_RE.search(prox)):
+                historico = f"{historico} - {prox}"
+                linhas_consumidas.add(i_valor + 1)
+
+        historico = historico.strip(" -")
+        return historico if len(historico) > 3 else texto_antes_valor
 
     # ─────────────────────────────────────────────────────────────────────────
     # MODELO 2
@@ -181,15 +234,33 @@ class ParserBB(ParserBase):
             data = m_data.group(1)[:5]
             resto = m_data.group(2).strip()
 
-            # Pula linha de detalhe (DD/MM HH:MM ...)
+            # Captura a(s) linha(s) de detalhe até o próximo lançamento.
+            # ANTES: só capturava linha no formato "DD/MM HH:MM texto"
+            # (detalhe de PIX/compra com cartão) — parava na primeira
+            # linha que não batesse com esse formato. Nome de fornecedor
+            # de BOLETO ("VIACAO AGUIA BRANCA S A", "MULTIPLIKE
+            # SECURITIZADORA S.A." etc) vem em linha solta, sem prefixo de
+            # data/hora nenhum, e por isso nunca era capturado — sumia
+            # 100% dos boletos (86 de 86 na validação com a Diniz).
+            # AGORA: captura qualquer linha até o próximo lançamento ou
+            # valor, só tirando o prefixo "DD/MM HH:MM" quando existir
+            # (pra não repetir a data, que já está na coluna própria).
+            detalhes = []
             while i < len(linhas):
                 prox = linhas[i].strip()
-                if re.match(r"^\d{2}/\d{2}/\d{4}", prox):
-                    break
-                if re.match(r"^\d{2}/\d{2}\s+\d{2}:\d{2}", prox):
+                if not prox:
                     i += 1
                     continue
-                break
+                if re.match(r"^\d{2}/\d{2}/\d{4}\s", prox) or re.match(r"^\d{2}/\d{2}/\d{4}$", prox):
+                    break
+                if self.VALOR_M2_RE.search(prox):
+                    break
+                if self.IGNORAR_RE.search(prox):
+                    i += 1
+                    continue
+                m_det = re.match(r"^\d{2}/\d{2}\s+\d{2}:\d{2}\s*(.*)", prox)
+                detalhes.append(m_det.group(1) if m_det and m_det.group(1) else prox)
+                i += 1
 
             m_val = self.VALOR_M2_RE.search(resto)
             if not m_val:
@@ -200,8 +271,14 @@ class ParserBB(ParserBase):
             historico = resto[:m_val.start()].strip()
             # Remove colunas numéricas do início (0000, 14024, 821)
             historico = re.sub(r"^(?:\d{3,5}\s+){1,3}", "", historico).strip()
-            # Remove documento numérico longo do final
+            # Remove documento numérico longo do final (dígito corrido —
+            # documentos com ponto, ex. 811.874.307.105.044, passam batido;
+            # não atrapalha o Módulo 2 porque a extração de nome/CPF já
+            # limpa esses padrões separadamente)
             historico = re.sub(r"\s+\d{6,}\s*$", "", historico).strip()
+
+            if detalhes:
+                historico = historico + " - " + " ".join(detalhes).strip()
 
             if not historico or len(historico) < 3 or self.IGNORAR_RE.search(historico):
                 continue

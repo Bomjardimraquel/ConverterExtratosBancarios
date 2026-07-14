@@ -35,6 +35,17 @@ class ParserItau(ParserBase):
     VALOR_RE    = re.compile(r"^-?\d{1,3}(?:\.\d{3})*,\d{2}$")
     DATA_RE     = re.compile(r"^\d{2}/\d{2}/\d{4}$")
     CNPJ_CPF_RE = re.compile(r"^\d{2,3}\.\d{3}\.\d{3}[/\-]\d{4,6}[-]?\d{0,2}$")
+    # Prefixos que sinalizam o INÍCIO de um lançamento de verdade (a
+    # coluna "Lançamento") — usado pra diferenciar uma linha sem data que
+    # é o começo órfão de um lançamento novo (cortado bem na quebra de
+    # página) de uma linha sem data que é só continuação do lançamento
+    # atual (o código do documento, tipo "DB0087118734"/"AT0087118734").
+    INICIO_LANC_RE = re.compile(
+        r"^(RECEBIMENTO|RECEBIMENTOS|BOLETO|BOLETOS|PIX|RENDIMENTOS?|"
+        r"PAGAMENTOS?|SALDO|TARIFA|D[ÉE]BITO|CR[ÉE]DITO|RESGATE|"
+        r"APLICA[ÇC][ÃA]O|TRANSFER[ÊE]NCIA|CHEQUE)",
+        re.IGNORECASE
+    )
 
     # Limites X das colunas (tolerância ±30)
     X_DATA    = (20,  80)
@@ -44,13 +55,24 @@ class ParserItau(ParserBase):
     X_VALOR   = (461, 570)
 
     def parse(self, conteudo: bytes) -> List[LancamentoBase]:
-        resultado = []
+        # Monta as "linhas-coluna" de TODAS as páginas numa lista só, na
+        # ordem de leitura, ANTES de agrupar em lançamentos. Um lançamento
+        # pode ser partido bem na quebra de página (a linha com
+        # Lançamento/Razão Social fica na última linha de uma página, e a
+        # linha com Data/Valor só chega na primeira linha da página
+        # seguinte). Processar página por página e reiniciar o estado a
+        # cada página fazia o pedaço órfão do fim de uma página grudar no
+        # lançamento ANTERIOR (ainda não finalizado) em vez do lançamento
+        # a que pertence de verdade — corrompendo dois lançamentos por
+        # quebra de página: um ficava com texto de sobra grudado, o outro
+        # nascia incompleto.
+        linhas_cols_doc: List[tuple] = []
         with pdfplumber.open(io.BytesIO(conteudo)) as pdf:
             for page in pdf.pages:
-                resultado += self._parse_page(page)
-        return resultado
+                linhas_cols_doc.extend(self._linhas_cols_da_pagina(page))
+        return self._monta_lancamentos(linhas_cols_doc)
 
-    def _parse_page(self, page) -> List[LancamentoBase]:
+    def _linhas_cols_da_pagina(self, page) -> List[tuple]:
         words = page.extract_words(x_tolerance=3, y_tolerance=3)
         if not words:
             return []
@@ -88,6 +110,9 @@ class ParserItau(ParserBase):
                     cols[c].append(w['text'])
             linha_d = {k: ' '.join(v) for k, v in cols.items()}
             linhas_cols.append((y, linha_d))
+        return linhas_cols
+
+    def _monta_lancamentos(self, linhas_cols: List[tuple]) -> List[LancamentoBase]:
 
         # Monta lançamentos: agrupa linhas consecutivas que pertencem ao mesmo lançamento
         # Uma linha tem data → início de novo lançamento
@@ -104,35 +129,64 @@ class ParserItau(ParserBase):
             # Ignora linhas de cabeçalho/saldo
             linha_completa = ' '.join([data_txt, lanc_txt, razao_txt, valor_txt])
             if self.IGNORAR_DATA.search(linha_completa):
-                if atual:
+                if atual and atual.get('valor'):
                     lancamentos.append(atual)
-                    atual = None
+                atual = None
                 continue
 
             if self.DATA_RE.match(data_txt):
-                # Nova linha com data → salva o anterior, começa novo
-                if atual:
-                    lancamentos.append(atual)
-                atual = {
-                    'data': data_txt,
-                    'lanc': lanc_txt,
-                    'razao': razao_txt,
-                    'valor': valor_txt,
-                }
-            elif atual:
-                # Linha sem data → complemento (coluna Lançamento ou Razão Social)
-                if lanc_txt and not atual['lanc']:
-                    atual['lanc'] = lanc_txt
-                elif lanc_txt:
-                    atual['lanc'] += ' ' + lanc_txt
-                if razao_txt and not atual['razao']:
-                    atual['razao'] = razao_txt
-                elif razao_txt:
-                    atual['razao'] += ' ' + razao_txt
-                if valor_txt and not atual['valor']:
+                if atual and not atual.get('valor'):
+                    # 'atual' é um começo pendente (rótulo órfão que veio
+                    # antes, possivelmente na página anterior) — completa
+                    # ELE com a data/cnpj/valor desta linha em vez de
+                    # começar um lançamento do zero e perder o rótulo.
+                    atual['data'] = data_txt
+                    if lanc_txt:
+                        atual['lanc'] = (atual['lanc'] + ' ' + lanc_txt).strip()
+                    if razao_txt:
+                        atual['razao'] = (atual['razao'] + ' ' + razao_txt).strip()
                     atual['valor'] = valor_txt
+                else:
+                    # Nova linha com data → salva o anterior, começa novo
+                    if atual:
+                        lancamentos.append(atual)
+                    atual = {
+                        'data': data_txt,
+                        'lanc': lanc_txt,
+                        'razao': razao_txt,
+                        'valor': valor_txt,
+                    }
+            else:
+                # Linha sem data: pode ser (a) começo órfão de um
+                # lançamento novo, cortado bem na quebra de página — a
+                # Data só chega numa linha seguinte — ou (b) continuação
+                # normal do lançamento atual (código do documento). O
+                # sinal pra diferenciar: começo órfão tem um rótulo
+                # reconhecível de tipo de lançamento (RECEBIMENTO, BOLETO,
+                # PIX...) na coluna Lançamento; continuação normal não
+                # (é só o código do documento, tipo "DB0087118734").
+                eh_comeco_orfao = bool(
+                    lanc_txt and self.INICIO_LANC_RE.match(lanc_txt)
+                    and (atual is None or atual.get('valor'))
+                )
+                if eh_comeco_orfao:
+                    if atual and atual.get('valor'):
+                        lancamentos.append(atual)
+                    atual = {'data': '', 'lanc': lanc_txt, 'razao': razao_txt, 'valor': ''}
+                elif atual:
+                    # continuação normal (coluna Lançamento ou Razão Social)
+                    if lanc_txt and not atual['lanc']:
+                        atual['lanc'] = lanc_txt
+                    elif lanc_txt:
+                        atual['lanc'] += ' ' + lanc_txt
+                    if razao_txt and not atual['razao']:
+                        atual['razao'] = razao_txt
+                    elif razao_txt:
+                        atual['razao'] += ' ' + razao_txt
+                    if valor_txt and not atual['valor']:
+                        atual['valor'] = valor_txt
 
-        if atual:
+        if atual and atual.get('valor'):
             lancamentos.append(atual)
 
         # Converte para LancamentoBase

@@ -1,0 +1,1164 @@
+{
+  "A25": {
+    "nome": "ARANDU ASSISTENCIA EM SAUDE LTDA",
+    "cnpj": "07.763.914/0001-53",
+    "grupo": "servicos",
+    "regime": "lucro_presumido",
+    "bancos": {
+      "sicoob": "11120",
+      "bb": "11041"
+    },
+    "conta_caixa": "11002",
+    "conta_aplicacao": "11161",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 45
+    },
+    "regras_texto": [
+      {
+        "contem": [
+          "RDC AUTOMÁTICO",
+          "RESGATE RDC"
+        ],
+        "debito_D": "11161",
+        "credito_C": "11161",
+        "descricao": "Aplicação automática RDC"
+      },
+      {
+        "contem": [
+          "PIS - FATURAMENTO"
+        ],
+        "debito_D": "21407",
+        "descricao": "PIS a recolher",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "COFINS - FATURAMENTO"
+        ],
+        "debito_D": "21408",
+        "descricao": "COFINS a recolher",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "PREV SOCIAL",
+          "INSS"
+        ],
+        "debito_D": "21401",
+        "descricao": "INSS a recolher",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "IRRF"
+        ],
+        "debito_D": "21504",
+        "descricao": "IRRF a recolher",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "FGTS"
+        ],
+        "debito_D": "21404",
+        "descricao": "FGTS a recolher",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "TARIFA",
+          "PACOTE SERVIÇOS",
+          "PACOTE SERVICOS"
+        ],
+        "debito_D": "53502",
+        "descricao": "Despesas bancárias"
+      },
+      {
+        "contem": [
+          "PAGAMENTO SALARIO",
+          "PAGAMENTO DE SALARIO"
+        ],
+        "debito_D": "21702",
+        "descricao": "Folha de pagamento",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem_todos": [
+          "REPASSE",
+          "ROSICARLA"
+        ],
+        "debito_D": "11505",
+        "descricao": "Repasse Dra. Carla"
+      },
+      {
+        "contem": [
+          "REPASSE"
+        ],
+        "debito_D": "53956",
+        "descricao": "Repasses médicos"
+      },
+      {
+        "contem": [
+          "SERVICOS CONTABEIS",
+          "SERVIÇOS CONTABEIS"
+        ],
+        "debito_D": "53023",
+        "descricao_dinamica": true,
+        "aviso": "Lembrete: baixar a provisão"
+      },
+      {
+        "contem": [
+          "ALUGUEL"
+        ],
+        "nao_contem": [
+          "TRIBUTOS FEDERAIS"
+        ],
+        "debito_D": "53053",
+        "descricao": "Aluguel",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "SIPAG"
+        ],
+        "usa_padrao": true,
+        "descricao_template": "Vr. recebido conf. extrato"
+      },
+      {
+        "contem": [
+          "DEP.DINHEIRO",
+          "DEP DINHEIRO"
+        ],
+        "usa_padrao": true,
+        "descricao_template": "Vr. depositado conf. extrato"
+      },
+      {
+        "contem": [
+          "PIX RECEBIDO",
+          "PIX - RECEBIDO"
+        ],
+        "usa_padrao": true,
+        "descricao_template": "Vr. pix recebido de {nome} conf. extrato",
+        "descricao_sem_nome": "Vr. pix recebido conf. extrato"
+      }
+    ],
+    "ignorar_se_contem": [
+      "SALARIO",
+      "TAXA PAG SALARIOS"
+    ],
+    "regras_extras": [
+      {
+        "contem": [
+          "GRAFICA",
+          "UAI PRIME",
+          "TOP 20"
+        ],
+        "conta_debito": "53050",
+        "confianca": "revisar_manual",
+        "aviso": "Material de consumo pra clínica"
+      },
+      {
+        "contem": [
+          "CAFE DA MANHA",
+          "LANCHE"
+        ],
+        "conta_debito": "53103",
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "DIARISTA"
+        ],
+        "conta_debito": "53956",
+        "aviso": "Prestação de serviço pessoa física"
+      },
+      {
+        "contem": [
+          "CDL"
+        ],
+        "conta_debito": "53074",
+        "confianca": "revisar_manual",
+        "descricao_template": "Pg. ref. {favorecido} - {descricao}"
+      },
+      {
+        "contem": [
+          "BELA KASA"
+        ],
+        "conta_debito": "53075",
+        "confianca": "revisar_manual",
+        "aviso": "Confirmar se ainda é reforma em andamento"
+      },
+      {
+        "contem": [
+          "PRO LABORE",
+          "PROLABORE"
+        ],
+        "conta_debito": "21727",
+        "descricao_template": "Pg. liquido pro-lobore mês conf. recibo {mes_ano}"
+      },
+      {
+        "contem": [
+          "ISSQN"
+        ],
+        "conta_debito": "21505",
+        "confianca": "revisar_manual",
+        "aviso": "Conferir número do boleto manualmente"
+      }
+    ]
+  },
+  "D08": {
+    "nome": "DINIZ TEIXEIRA LTDA",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "bb": "11041"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "conta_saida_sem_match": "53065",
+    "intermediarios_financeiros": [
+      "BANCO FIBRA",
+      "BANCO SOFISA",
+      "NOVA CAPITAL SECURITIZADORA",
+      "MULTIPLIKE SECURITIZADORA"
+    ],
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30
+    },
+    "terceiros_fornecedores": {
+      "AB COMEX": "038738",
+      "ESSILOR LAB": "046591",
+      "ESSILOR": "015486",
+      "FORNECEDORA LAJEADEN": "034164",
+      "HTK": "029757",
+      "JOHNSON": "020934",
+      "KENERSON": "015482",
+      "LUXOTTICA": "015383",
+      "SAFILO": "015480",
+      "SUNTECH": "031124"
+    },
+    "regras_texto": [
+      {
+        "contem": [
+          "LANCHONETE",
+          "LANCHONETES",
+          "RESTAURANTE",
+          "RESTAURANTES",
+          "SORVETE",
+          "SORVETES",
+          "PADARIA",
+          "PADARIAS",
+          "PIZZARIA",
+          "PIZZARIAS",
+          "CHURRASCARIA",
+          "CHURRASCARIAS",
+          "PASTELARIA",
+          "PASTELARIAS",
+          "LANCHES",
+          "CAFETERIA",
+          "CAFETERIAS",
+          "ACAI"
+        ],
+        "debito_D": "53103",
+        "descricao_dinamica": true,
+        "confianca": "revisar_manual",
+        "aviso": "Categoria por tipo de estabelecimento (alimentação) - conferir se é despesa da empresa"
+      },
+      {
+        "contem": [
+          "PAPELARIA",
+          "PAPELARIAS"
+        ],
+        "debito_D": "53050",
+        "descricao_dinamica": true,
+        "confianca": "revisar_manual"
+      },
+      {
+        "contem": [
+          "TELEFONE"
+        ],
+        "debito_D": "53057",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "INAH"
+        ],
+        "debito_D": "53053",
+        "descricao_dinamica": true,
+        "confianca": "revisar_manual",
+        "aviso": "Aluguel - confirmar se é sempre o mesmo imóvel/finalidade"
+      },
+      {
+        "contem": [
+          "EMBASA"
+        ],
+        "debito_D": "53062",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "CLARO"
+        ],
+        "debito_D": "53057",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "VIACAO"
+        ],
+        "debito_D": "53070",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "POSTO"
+        ],
+        "debito_D": "53086",
+        "descricao_dinamica": true,
+        "aviso": "Nomes de posto colados sem espaço (ex: 'PostoOuroNegro') não batem com essa regra"
+      },
+      {
+        "contem": [
+          "MOMENTO ASSESSORIA"
+        ],
+        "debito_D": "21798",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "IOLANDA"
+        ],
+        "debito_D": "11505",
+        "descricao_dinamica": true,
+        "confianca": "media",
+        "aviso": "Confirmar se é sempre a mesma pessoa/finalidade antes de importar"
+      },
+      {
+        "contem": [
+          "ATUAL SISTEMA"
+        ],
+        "debito_D": "53073",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "RADIO CARAIPE"
+        ],
+        "debito_D": "53073",
+        "descricao_dinamica": true
+      },
+      {
+        "contem": [
+          "SIMPLES NACIONAL",
+          "DAS "
+        ],
+        "debito_D": "21533",
+        "descricao": "Simples Nacional (DAS)"
+      },
+      {
+        "contem": [
+          "FGTS"
+        ],
+        "debito_D": "21404",
+        "descricao": "FGTS a recolher"
+      },
+      {
+        "contem": [
+          "INSS",
+          "PREV SOCIAL"
+        ],
+        "debito_D": "21401",
+        "descricao": "INSS a recolher"
+      },
+      {
+        "contem": [
+          "PAGAMENTO SALARIO"
+        ],
+        "debito_D": "21702",
+        "descricao": "Folha de pagamento"
+      },
+      {
+        "contem": [
+          "TARIFA",
+          "PACOTE SERVIÇOS",
+          "PACOTE SERVICOS",
+          "TARIFA PIX"
+        ],
+        "debito_D": "53502",
+        "descricao": "Despesas bancárias"
+      }
+    ]
+  },
+  "A02": {
+    "nome": "AUTO PEÇAS FIGUEIRAUTO",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ADEVALDO": "009726",
+      "ANA PAULA ALVES TORR": "019351",
+      "ELISSANDRO COSTA COR": "025722",
+      "EMANUEL VELASCO DA S": "042471",
+      "ICARO PACHECO": "027274",
+      "JOAO PEREIRA DOS SAN": "037850",
+      "MANOEL EDVAL": "015828",
+      "MV PECAS E MECANICA": "048695",
+      "PIRÂMIDE": "009078",
+      "REGIANE CARVALHO LEA": "026246",
+      "REGINALDO DA ANUNCIA": "020702",
+      "RENATO CARLOS NEIVA": "024059",
+      "RENI": "018779",
+      "SOLUÇÕES": "024748",
+      "VESPOR AUTOMOTIVE": "008942"
+    },
+    "terceiros_fornecedores": {
+      "ASA MULTIPECAS": "046594",
+      "CODISAUTO COML DISTR": "002832",
+      "COMERCIAL JAHU BORR.": "003441",
+      "CORCERAMA COMERCIO D": "002924",
+      "FE DISTRIBUIDORA": "030406",
+      "FW DISTRIBUIDORA LTD": "001452",
+      "METALSYSTEM DIST.DE": "003546",
+      "REAL MOTO PECA LTDA": "001981",
+      "REAL MOTO PECAS LTDA": "001983",
+      "REAL MOTO PEÇAS": "018857",
+      "TREMER INDUSTRIA": "045459",
+      "UNIFORT": "005835",
+      "UNIFORT LTDA": "002822",
+      "VESPOR AUTOMOTIVE": "008942"
+    }
+  },
+  "A07": {
+    "nome": "AUTOMINAS",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ALTENIS GALAVOTTI CA": "045147",
+      "DIOCESE TEIXEIRA": "006053",
+      "EDILEUSA C DOS REIS": "021282",
+      "FERNANDO LADIN BARCE": "048558",
+      "GABRYELE SOARES GOME": "042426",
+      "INGRID SANTOS DE AND": "049212",
+      "ITAMADIL": "001556",
+      "J.R. PNEUS LTDA": "032692",
+      "JORGE": "015631",
+      "M.P.A. HOTELARIA": "006601",
+      "MOTO SUL": "001018",
+      "RAILSON DE SOUZA SAN": "049213",
+      "RARINE DE SOUZA": "044820",
+      "REAL MOTO PECA LTDA": "001981",
+      "RYAN SOARES DE BRITO": "049211",
+      "WANDERSON OLIVEIRA S": "048468",
+      "WC DRONE COMERCIO E": "040564"
+    },
+    "terceiros_fornecedores": {
+      "A. P. DA COSTA DISTR": "042740",
+      "AUTO IMPORTS LTDA": "049342",
+      "BALDO & CIA LTDA": "001603",
+      "CIA BRASILEIRA": "040194",
+      "CODISAUTO COML DISTR": "002832",
+      "COMPANHIA BRASILEIRA": "002880",
+      "FW DISTRIBUIDORA LTD": "001452",
+      "NOVA VIA AUTO PECAS": "048470",
+      "REAL MOTO PECA LTDA": "001981",
+      "S E S PECAS AUTOMOTI": "022171",
+      "TOPVEL": "010675",
+      "UNIFORT LTDA": "002822",
+      "VIAFOR VEICULOS LTDA": "049343",
+      "WURTH DO BRASIL PCAS": "002921"
+    }
+  },
+  "A17": {
+    "nome": "AJ BOTELHO (ADEIR MATERIAL DE CONSTRUCAO)",
+    "cnpj": "24.757.014/0001-12",
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120",
+      "itau": "11045"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "49.603.643 CLAUDIO R": "048705",
+      "ADALTO BRAGA BOTELHO": "028142",
+      "ADEMAR": "014126",
+      "ADEMIR ROZA CORREIA": "030809",
+      "ADRIANO RIBEIRO MEND": "049663",
+      "AGNALDO SANTOS": "008113",
+      "AGUIMAR DE JESUS DOS": "048766",
+      "ALAN VIANA NOVAIS": "048761",
+      "ALBERTO CARLOS": "019506",
+      "ALEXANDRA COELHO VIA": "045175",
+      "ALMIRA BORGES DA SIL": "049911",
+      "ALMIRO ARAUJO DOS SA": "043554",
+      "AMARILDO RESENDE": "029946",
+      "ANDREIA DE SOUZA SIL": "049914",
+      "ANTONIO": "009220",
+      "ARABELA CONSTRUCOES": "049894",
+      "AVAILTON PEREIRA COE": "049918",
+      "BEATRIZ SOUZA PEREIR": "035111",
+      "BRUNA GOMES NASCIMEN": "047190",
+      "BRUNO SOUZA DE LIMA": "049910",
+      "CAMILA AMARAL COSTA": "047167",
+      "CELSO ALVESDE SOUZA": "049658",
+      "CENTRO ENSINO": "007071",
+      "CLEBSON BATISTA MARQ": "049661",
+      "CLERISTON RODRIGUES": "040543",
+      "CLEUDE MANOEL DE SOU": "041007",
+      "CLEUMILDES ETELVINO": "048760",
+      "CONSTRUTORA E LOCADO": "048963",
+      "COSMO DOS SANTOS AZE": "048416",
+      "DANILA MENEZES DA RO": "043879",
+      "E S P ENGENHARIA & M": "048427",
+      "EDENILSON CASTRO DOS": "043137",
+      "EDILSON LIMA DOS SAN": "048763",
+      "EDNEIA MACHADO DE BR": "045581",
+      "ELIETE CRUZ PIMENTEL": "022488",
+      "ELIEVALDO": "021534",
+      "EMANUELLE SANTOS REI": "049666",
+      "EMILAINE REGINA SANT": "049649",
+      "EMILIO VIEIRA SILVA": "028325",
+      "ENILTON DOS SANTOS B": "043884",
+      "ERIVAN GONCALVES DOS": "049295",
+      "EVERALDO RODRIGUES V": "025680",
+      "GENIVAL GONVALVES DO": "041504",
+      "GEOSVALDO CORNELIO D": "048712",
+      "GILMAR SOUZA DA SILV": "032464",
+      "HELIO ROSA DE SOUZA": "043876",
+      "IDALICIO PEREIRA DOS": "034302",
+      "IMOBILIARIA SAO FRAN": "042722",
+      "IRANI RODRIGUES MEND": "049657",
+      "IRENIO PEREIRA": "022594",
+      "JAILTON SOUZA DA SIL": "049302",
+      "JAMES FERREIRA GOMES": "049292",
+      "JO LUCAS DA SILVA PE": "048707",
+      "JOAO LOPES CORDEIRO": "049656",
+      "JOAQUIM LOBO OLIVEIR": "041500",
+      "JOSE AMERICO CORREIA": "045433",
+      "JOSE BRUNO DE OLIVEI": "033202",
+      "JOSE CARLOS JESUS OL": "049289",
+      "JOSE DA SILVA MARCEL": "048718",
+      "JOSE NELIO KRETLIN A": "049659",
+      "JOSE PEREIRA DA SILV": "036920",
+      "JOSE PLACIDO MORAIS": "027457",
+      "JOSUE JOSE DA SILVA": "038801",
+      "JOSÉ CARLOS DE ARAU": "025514",
+      "JUAREZ SILVA RIBEIRO": "032437",
+      "JUCILEIA": "010986",
+      "KATIA NUBIA": "021184",
+      "KATIANE MARTINS DA S": "049291",
+      "KERLES MORAES NOVAIS": "048765",
+      "LABORATORIO STA.AMEL": "005639",
+      "LEIA FLAVIA BORGES": "040519",
+      "LENILSON SANTOS DE A": "043488",
+      "LENILSON WANDO DE OL": "049667",
+      "LEONARDO REZENDE": "022116",
+      "LEVI CUNHA DE ANDRAD": "032454",
+      "LUCAS DA SILVA AGUIA": "048770",
+      "LUCAS MANOEL VIEIRA": "049258",
+      "LUIS": "012300",
+      "LUIZ CARLOS GUINAZI": "049662",
+      "LUIZ CATELLAN NETTO": "049635",
+      "MANOEL": "019404",
+      "MARCELO SANTOS": "031156",
+      "MARCOS AURELIO": "024526",
+      "MARCOS DEIVID ALVES": "049278",
+      "MARIA CLARA BANDEIRA": "035463",
+      "MARIENI LIMA ZANOTEL": "049913",
+      "MARLENE ESTACIA DE J": "049621",
+      "MATHEUS VIEIRA PEREI": "034088",
+      "MAURILIO DOS SANTOS": "049298",
+      "MAXPLAST INDUSTRIA D": "046628",
+      "MAYLA LEMOS DOS SANT": "049665",
+      "MAZANDRO ROCHA": "008636",
+      "MOISES ANTONIO DE AL": "049299",
+      "NAKSONLEY SOARES ROC": "049917",
+      "NELICE": "015992",
+      "NERISVALDO": "008746",
+      "NILTON CONCEIÇÃO": "021097",
+      "ORNOILDES QUEIROZ": "043558",
+      "PATRICK ALEXO DE PAU": "049287",
+      "PAULO": "009865",
+      "PAULO DE SOUZA CAMPO": "026682",
+      "PAULO NEVES": "028467",
+      "PAULO PEREIRA DA SIL": "044543",
+      "POUSADA": "008737",
+      "RAFAEL SILVA SANTOS": "049908",
+      "RAFAELA CHAVES SANTO": "049916",
+      "RAQUEL SILVA SANTOS": "049899",
+      "REGINALDO FERREIRA D": "040522",
+      "RODRIGO": "018329",
+      "ROGERIO ALEXANDRE GO": "049290",
+      "RONALDO PARANAGUA RA": "031163",
+      "ROSA MARIA CAIRES DE": "018969",
+      "SALVADOR SILVA RIBEI": "048964",
+      "SANTIAGO": "012105",
+      "SEBASTIAO SCOPEL": "049301",
+      "SUPERMERCADO CASA GR": "002085",
+      "SÉRGIO ALVES DIAS": "018833",
+      "THIAGO MAURICIO DA S": "045441",
+      "URIAS FERNANDO": "049909",
+      "VALDIRENE": "014769",
+      "VALTEILDES OLIVEIRA": "049912",
+      "VANDERLEIA GONCALVES": "049297"
+    },
+    "terceiros_fornecedores": {
+      "ALMEIDA": "026002",
+      "ASSA ABLOY BRASIL IN": "046627",
+      "AUTO PEÇAS RONI": "022613",
+      "CASALITE IND.E COM.": "021407",
+      "CRAMICA BOAPABA LTDA": "002136",
+      "ESQUADROMIL": "026228",
+      "FERRAGENS 3 F": "028931",
+      "FORTLEV NORD IND.": "013454",
+      "GABRIELLA REVESTIMEN": "042005",
+      "GB ATACADISTA": "001800",
+      "GIDAL INDÚSTRIA": "024070",
+      "IDB ATACADISTA": "029615",
+      "JAPI SA INDÚSTRIA": "029619",
+      "KRONA TUBOS E CONEX": "016290",
+      "MACOPPI": "038851",
+      "MADEIREIRA PESADAO L": "046626",
+      "MARTINS COM. E SERVI": "000010",
+      "MAXPLAST INDUSTRIA D": "046628",
+      "MERCANTE": "023237",
+      "O.V.D IMPORTADORA": "033049",
+      "PADRAO FORTE INDUSTR": "044826",
+      "SAINT-GOBAIN": "036329",
+      "STAM METALURGICA S/A": "005858",
+      "TEREZA DE FATIMA ANT": "045170",
+      "VJC ATACADO DISTRIBU": "016291",
+      "VOLTOLINI IND.MADEIR": "008545"
+    }
+  },
+  "A18": {
+    "nome": "ALP XAVIER",
+    "cnpj": null,
+    "grupo": "servicos",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ASSOCIACAO DOS SERV": "036898",
+      "ASSOCIAÇÃO DOS SERVI": "038179",
+      "COMSEG-ENGENHARIA DE": "026726",
+      "FERRAZ & MUNIZ M": "048498",
+      "FERTIMAGEM CLINICA M": "049992",
+      "FUNDO MUN.SAUDE PMTF": "011366",
+      "G. BRITO SOUSA": "047274",
+      "GV CLINICAS TEIXEIRA": "041694",
+      "LAR DOS IDOSOS S.FRA": "005634",
+      "MEDSEMPRE SERVICOS F": "048854"
+    },
+    "terceiros_fornecedores": {}
+  },
+  "B04": {
+    "nome": "BOTELHO",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120",
+      "itau": "11045"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ADALBERTO SOUZA SANT": "024598",
+      "ANDRESSA COSTA": "022125",
+      "BENEDITO": "019008",
+      "CIDELINA ROCHA RIBEI": "034169",
+      "CLEIDIANE": "019499",
+      "EDILSON RODRIGUES": "038489",
+      "FABIANO CARVALHO ALM": "044203",
+      "FERNANDO HENRIQUE DE": "046069",
+      "GABRIELA MENDES": "022124",
+      "INDÚSTRIA E COMÉRCIO": "038494",
+      "JOANA SILVA": "007815",
+      "JOAO DE JESUS FIGUEI": "027029",
+      "JOSE ANTONIO MONTEIR": "016466",
+      "JOSE NOBRE": "020731",
+      "JOSE SANTOS": "019175",
+      "JUCELIA MENDES SOARE": "017436",
+      "JULIO MIRANDA": "022257",
+      "JUSCELINO RIBEIRO NO": "028159",
+      "KAMILY OLIVEIRA GONC": "041483",
+      "LEONARDO SOUZA": "021949",
+      "LUIZ ALBERTO": "019613",
+      "LUIZ SOARES": "035889",
+      "MARCOS": "012121",
+      "MILTON": "019505",
+      "OSVALDO RODRIGUES DA": "045011",
+      "PAULO MARCOS CARDOSO": "027136",
+      "PAULO SERGIO DO NASC": "042728",
+      "RODOLFO ELIAS SANTOS": "038747",
+      "RODRIGO MARCELO MORE": "050082",
+      "ROSENALIA BATISTA DA": "035479",
+      "ROSIMEIRE": "023531",
+      "SIMONE DA SILVA": "022267",
+      "STAM METALURGICA S/A": "005858",
+      "VALDIRENE GUEDES DA": "019604",
+      "VILMAR": "019603",
+      "WAGNER FERREIRA ALVE": "027993",
+      "WELINGTON BRITO DE S": "026680",
+      "WUNDERSON": "022118"
+    },
+    "terceiros_fornecedores": {
+      "ACOMIX": "018035",
+      "ALMEIDA": "026002",
+      "AUTO PEÇAS RONI": "022613",
+      "BARTOFIL INDUSTRIA E": "001907",
+      "BN ARTEFATOS DE CIME": "048689",
+      "CASALITE IND.E COM.": "021407",
+      "COZIMAX MOVEIS": "032473",
+      "DURAFORT INTERNACION": "047541",
+      "ERIKA DA SILVA REZEN": "048691",
+      "ESQUADROMIL": "026228",
+      "FERRAGENS 3 F": "028931",
+      "FORTLEV NORD IND.": "013454",
+      "GB ATACADISTA": "001800",
+      "GIDAL INDÚSTRIA": "024070",
+      "HUAI ENGENHARIA": "005366",
+      "IDB ATACADISTA": "029615",
+      "IND. MET.PAIS E FILH": "011816",
+      "INDÚSTRIA E COMÉRCIO": "038494",
+      "J.C. ROCHA & CIA LTD": "001672",
+      "MARTINS COM. E SERVI": "000010",
+      "MERCANTE": "023237",
+      "O.V.D IMPORTADORA": "033049",
+      "PADRAO FORTE INDUSTR": "044826",
+      "PONTES GRANITOS LTDA": "048692",
+      "STAM METALURGICA S/A": "005858",
+      "VJC ATACADO DISTRIBU": "016291"
+    }
+  },
+  "C06": {
+    "nome": "OLIVEIRA E DAMENHAUER",
+    "cnpj": null,
+    "grupo": "servicos",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120",
+      "itau": "11045",
+      "bb": "11041"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ADRIAN SOUZA PEREIRA": "035347",
+      "ARLEY NASCIMENTO DOS": "049444",
+      "AVELINO GIL QUEIROZ": "048832",
+      "CASSI BAHIA": "005727",
+      "EDIVAN BARBOSA ZITO": "031552",
+      "EDMILSON CELESTRINA": "049684",
+      "ENOI GUIMARÃES": "029947",
+      "EULITA CARMONIA DE O": "048831",
+      "FUNDO MUN.SAUDE PMTF": "011366",
+      "FUNSERV FUNDO CUST.": "005785",
+      "HITAWANNE DOS SANTOS": "048772",
+      "JOAO PAULO": "016645",
+      "JOEL PAULO REIS": "049184",
+      "JUCELIA FERREIRA FIG": "018529",
+      "KAROLINE FONTES CAJU": "049172",
+      "LUDMILA EVELIN OLIVE": "048835",
+      "LUIZ PAULO": "015810",
+      "MAURICIO BARBOSA SIL": "038868",
+      "MIKAELLY OLIVEIRA SO": "049186",
+      "PAULO SERGIO DE FARI": "048837",
+      "SERV.SOCIAL IND.PAP.": "013950",
+      "THAIS SANTOS": "048779",
+      "UNIMED EXTREMO SUL C": "005630",
+      "VICTÓRIA AMARAL SOUZ": "048839"
+    },
+    "terceiros_fornecedores": {}
+  },
+  "C23": {
+    "nome": "CMF DE LIMA",
+    "cnpj": null,
+    "grupo": "servicos",
+    "regime": "lucro_presumido",
+    "bancos": {
+      "sicoob": "11120"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "FUNDO MUN.SAUDE PMTF": "011366",
+      "GLAXOSMITHKLINE": "002421",
+      "INSTITUTO FERNANDO F": "042293",
+      "PROMÉDICA PROTEÇÃO M": "023184",
+      "REDE D'OR SÃO LUIZ S": "043935",
+      "SERV.SOCIAL IND.PAP.": "013950",
+      "SOCIEDADE BRASILEIRA": "005477",
+      "UNIMED EXTREMO SUL C": "005630"
+    },
+    "terceiros_fornecedores": {},
+    "regras_texto": [
+      {
+        "contem": [
+          "***.473.985-**"
+        ],
+        "debito_D": "11505",
+        "descricao_dinamica": true,
+        "confianca": "media",
+        "aviso": "Confirmar se é sempre a mesma pessoa/finalidade antes de importar"
+      }
+    ]
+  },
+  "F04": {
+    "nome": "FARMASUL",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120",
+      "santander": "11126"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "SANTA CRUZ": "018335"
+    },
+    "terceiros_fornecedores": {
+      "ACRIPEL BA": "049202",
+      "ALIANCA FARMA": "018718",
+      "ARCOM BAHIA LTDA": "047570",
+      "ARMAZEM DOS COSMETIC": "047819",
+      "CABRAL E SOUSA LTDA": "048827",
+      "CESCOM CESCONETO COM": "002140",
+      "CHOCOSUL DISTRIBUIDO": "000765",
+      "CIMED & CO. S.A.": "047821",
+      "D H R DISTRIBUIDORA": "049208",
+      "DCA DISTRIBUIDORA DE": "047568",
+      "DISTRIBUIDOR ATACADI": "003650",
+      "DISTRIBUIDORA": "018716",
+      "F & F": "018385",
+      "FARMIX DISTRIBUIDORA": "047574",
+      "GOLFARMA": "018881",
+      "JS DISTRIBUIDORA": "018334",
+      "LAFMED DISTRIBUIDORA": "047822",
+      "LAS PALETITAS": "047572",
+      "LDC DISTRIBUIDORA LT": "047569",
+      "MARTINS COM. E SERVI": "000010",
+      "MASTTER": "009573",
+      "MIPPHARMA": "048356",
+      "NAZARIA DISTRIBUIDOR": "048826",
+      "NDS Distribuidora de": "047564",
+      "ORGAFARMA ORGANIZACA": "047565",
+      "PANPHARMA": "000600",
+      "PLUSFARMA COMERCIAL": "047563",
+      "PRIMARDI DISTRIBUICA": "047820",
+      "PROFARMA": "047825",
+      "RD COMERCIAL LTDA": "047566",
+      "SANTA CRUZ": "018335",
+      "SINERGIA ATACADISTA": "048830",
+      "UNIMARKA DISTRIBUIDO": "047562"
+    }
+  },
+  "G02": {
+    "nome": "GUIMARAES E SOARES LTDA",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "bb": "11041"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ABR BIOENERGIA LTDA": "028988",
+      "MACPLAN": "014193"
+    },
+    "terceiros_fornecedores": {
+      "ESQUADROMIL": "026228",
+      "JAILDA MARTINS": "032318",
+      "MACPLAN": "014193",
+      "MONFARDINI": "033868"
+    }
+  },
+  "M08": {
+    "nome": "MOMENTO CONTABILIDADE",
+    "cnpj": null,
+    "grupo": "servicos",
+    "regime": "simples",
+    "bancos": {
+      "sicoob": "11120"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ALMIR LUIZ PAESE": "038180",
+      "ARANDU": "010400",
+      "ASSOCIAÇÃO DOS FORNE": "033493",
+      "AUTO PECAS FIGUEIRAU": "000717",
+      "C.M.F.DE LIMA": "018128",
+      "CONDOMINIO MONT SERR": "028242",
+      "COOP MISTA AGROP.SUL": "001614",
+      "FARMA SUL TEIXEIRA L": "047598",
+      "LOJA MAÇONICA": "011701",
+      "MONT SERRAT": "012840",
+      "OLIVEIRA E DAMENHAUE": "011176",
+      "Q.4. ATIVIDADES AGRI": "040248",
+      "R B COMERCIO DE PECA": "048997",
+      "RENATO CARLOS NEIVA": "024059",
+      "TRIGOPANE PADARIA E": "048998",
+      "UROCLIN": "012496",
+      "VALMIR CAMPO": "011172",
+      "VALMIR JOSE CAMPO": "008777",
+      "ÓTICAS DINIZ": "015386"
+    },
+    "terceiros_fornecedores": {}
+  },
+  "M25": {
+    "nome": "MENDES E AZEVEDO",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {},
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "AELSON SANTOS VIEIRA": "048730",
+      "AGRONEGOCIO DEMUNER": "047871",
+      "CARLOS EDUARDO DE SO": "022181",
+      "DARLAN THOMAZINI SIL": "049708",
+      "GEOVANE BRAZ DE SOUZ": "049334",
+      "GILDENALDO PINHEIRO": "049707",
+      "GUSTAVO DOS SANTOS L": "048726",
+      "IVAN SOUZA MESCLA": "049335",
+      "JACKSON S . SANTOS": "027820",
+      "JOSE CARLOS DE JESUS": "028186",
+      "JOSE MESSIAS RIBEIRO": "049965",
+      "JULIO CESAR SIQUEIRA": "045652",
+      "LOURENCO MACEDO GOME": "049583",
+      "LUCIENE OLIVEIRA SAN": "049968",
+      "MANOEL MESSIAS D SOU": "027818",
+      "RONIGLEI SOUSA": "049966",
+      "ROSILENE RUFINO SOUZ": "049702",
+      "SEBASTIAO SAUDE": "046064",
+      "VALBE MARQUES SILVA": "026449",
+      "VANDERLEI ESMERINDO": "031233",
+      "VERA LUCIA DA CONCEI": "048729",
+      "ZARIFA FAOUR": "049705"
+    },
+    "terceiros_fornecedores": {
+      "ESQUADROMIL": "026228",
+      "EXTINSUL EXTINTORES": "047480",
+      "GB ATACADISTA": "001800",
+      "MACOPPI": "038851",
+      "MADEREIRA": "017702",
+      "MARANATA INDUSTRIA E": "049701",
+      "POSTO MAR DAS PEDRAS": "036378",
+      "SANTIM IND.DE PORTAS": "003995",
+      "VOLTOLINI IND.MADEIR": "008545"
+    }
+  },
+  "R13": {
+    "nome": "RB COMERCIO DE PECAS LTDA",
+    "cnpj": "54.442.498/0001-71",
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "santander": "11126",
+      "pagbank": "11127"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "7LUB": "017453",
+      "HIPERCG": "016970"
+    },
+    "terceiros_fornecedores": {
+      "7LUB": "017453",
+      "DAMASIO DISTRIBUIDOR": "048858",
+      "HIPERCG": "016970",
+      "HONDA": "015562"
+    }
+  },
+  "T10": {
+    "nome": "TRIGOPANE",
+    "cnpj": null,
+    "grupo": "comercio",
+    "regime": "simples",
+    "bancos": {
+      "bradesco": "11044"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "NANUQUE": "011105"
+    },
+    "terceiros_fornecedores": {
+      "WMS SUPERMERCADOS DO": "048992"
+    }
+  },
+  "U01": {
+    "nome": "UROCLIN",
+    "cnpj": null,
+    "grupo": "servicos",
+    "regime": "lucro_presumido",
+    "bancos": {
+      "sicoob": "11120"
+    },
+    "conta_caixa": "11002",
+    "conta_clientes": "11401",
+    "conta_fornecedores": "28625",
+    "casa_pf": false,
+    "cruzamento": {
+      "tolerancia_valor": 0.02,
+      "janela_dias_despesa": 3,
+      "janela_dias_titulo_pj": 30,
+      "_obs": "usando o default da Diniz; Arandu usa 45 por ser um caso específico — confirmar se alguma dessas empresas precisa de janela diferente"
+    },
+    "terceiros_clientes": {
+      "ANTONIO LUIZ FRANCO": "048782",
+      "BENEDITO": "011063",
+      "EDMUNDO SILVA": "048781",
+      "EDSON DA SILVA CASTR": "043948",
+      "SERV.SOCIAL IND.PAP.": "013950",
+      "UNIMED EXTREMO SUL C": "005630"
+    },
+    "terceiros_fornecedores": {},
+    "regras_texto": [
+      {
+        "contem": [
+          "CLAUDIO FERREIRA CHAGAS"
+        ],
+        "debito_D": "11505",
+        "descricao_dinamica": true,
+        "confianca": "media",
+        "aviso": "Confirmar se é sempre a mesma pessoa/finalidade antes de importar"
+      }
+    ]
+  }
+}

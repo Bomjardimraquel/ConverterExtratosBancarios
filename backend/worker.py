@@ -1,6 +1,6 @@
 from utils.fila import conexao_redis
-from rq import Worker
+from rq import SimpleWorker
 
 if __name__ == "__main__":
-    worker = Worker(["processamento"], connection=conexao_redis)
+    worker = SimpleWorker(["processamento"], connection=conexao_redis)
     worker.work()

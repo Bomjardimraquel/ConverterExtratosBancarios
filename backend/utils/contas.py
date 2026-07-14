@@ -13,13 +13,36 @@ CONTAS = {
     "11042": "Banco do Nordeste",
     "11002": "Caixa da Empresa",
     "53502": "Despesas Bancárias",
-    "53514": "IOF",
+    "53513": "IOF",  # bug corrigido: estava 53514
     "53501": "Juros",
     "53065": "Diversos (Impostos)",
     "21504": "IRRF",
 }
 
 CONTA_CAIXA = "11002"
+
+# Contas "especiais" — ao contrário de REGRAS_CLASSIFICACAO (que só vale
+# pra débito e sempre credita o banco), essas valem pros DOIS lados
+# (entrada E saída), porque representam uma transferência entre o banco e
+# outra conta do próprio balanço (empréstimo, aplicação) — não é
+# despesa/receita de verdade, é dinheiro só mudando de lugar dentro da
+# empresa. Testadas ANTES de tudo em classificar_lancamento.
+CONTAS_ESPECIAIS = [
+    {
+        "keywords": [
+            "bb giro pronampe", "pronampe",
+            "capital de gir", "capital de giro",
+            "capital giro", "cap giro", "cap. giro",  # formas sem "de" — como aparece de verdade no extrato do BB
+        ],
+        "conta_especial": "21381",  # Empréstimo BB
+        "nome": "Empréstimo BB (Giro/Pronampe)",
+    },
+    {
+        "keywords": ["bb rende facil", "rende fácil"],
+        "conta_especial": "11142",  # BB Rende Fácil (Aplicação)
+        "nome": "BB Rende Fácil (Aplicação)",
+    },
+]
 
 BANCO_CONTA = {
     "bb": "11041",
@@ -45,7 +68,7 @@ REGRAS_CLASSIFICACAO = [
     # ── IOF ─────────────────────────────────────────────────────────────────
     {
         "keywords": ["iof", "deb.iof", "déb.iof", "imposto sobre operacao financeira"],
-        "conta_despesa": "53514",
+        "conta_despesa": "53513",  # bug corrigido: estava 53514
         "nome": "IOF",
     },
     # ── JUROS ────────────────────────────────────────────────────────────────
@@ -79,6 +102,12 @@ REGRAS_CLASSIFICACAO = [
         "nome": "Despesas Bancárias",
     },
     # ── IMPOSTOS / TRIBUTOS ──────────────────────────────────────────────────
+    # NOTA: "irrf" está aqui dentro (cai em 53065, junto com DARF/ICMS/PIS/
+    # COFINS genérico), não na conta própria "21504 - IRRF" que existe no
+    # CONTAS. Confirmar com a Raquel se é proposital (tudo que é imposto no
+    # extrato vira "despesa: diversos" no Módulo 1 e a conta certa é
+    # ajustada na mão no Prosoft) ou se o IRRF deveria usar 21504 direto,
+    # igual o IOF/Juros usam suas contas próprias.
     {
         "keywords": [
             "deb.conv.orgaos gov", "déb.conv.orgãos gov",

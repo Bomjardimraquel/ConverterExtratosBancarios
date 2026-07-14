@@ -1,6 +1,6 @@
 import unicodedata
 import re
-from utils.contas import REGRAS_CLASSIFICACAO, CONTA_CAIXA
+from utils.contas import REGRAS_CLASSIFICACAO, CONTA_CAIXA, CONTAS_ESPECIAIS
 
 
 def normalizar(texto: str) -> str:
@@ -20,6 +20,29 @@ def classificar_lancamento(descricao: str, valor: float, conta_banco: str) -> di
     """
     desc_norm = normalizar(descricao)
     eh_credito = valor >= 0
+
+    # Contas especiais (empréstimo BB, aplicação Rende Fácil) — testadas
+    # ANTES de tudo, valem tanto pra entrada quanto pra saída, porque é
+    # transferência entre contas do balanço, não despesa/receita real.
+    for regra in CONTAS_ESPECIAIS:
+        for kw in regra["keywords"]:
+            if normalizar(kw) in desc_norm:
+                if eh_credito:
+                    return {
+                        "tipo": "Crédito",
+                        "conta_debito": conta_banco,
+                        "conta_credito": regra["conta_especial"],
+                        "classificacao": regra["nome"],
+                        "requer_revisao": False,
+                    }
+                else:
+                    return {
+                        "tipo": "Débito",
+                        "conta_debito": regra["conta_especial"],
+                        "conta_credito": conta_banco,
+                        "classificacao": regra["nome"],
+                        "requer_revisao": False,
+                    }
 
     if not eh_credito:
         for regra in REGRAS_CLASSIFICACAO:
