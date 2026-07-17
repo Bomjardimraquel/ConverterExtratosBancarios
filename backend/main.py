@@ -5,7 +5,7 @@ from routes.auth import router as auth_router
 from utils.auth import usuario_atual
 from routes.modulo2 import router as modulo2_router
 
-app = FastAPI(title="ExtratoConverter", version="1.0.0")
+app = FastAPI(title="Concilia", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,4 +21,4 @@ app.include_router(modulo2_router, prefix="/api/modulo2", dependencies=[Depends(
 
 @app.get("/")
 def root():
-    return {"status": "ok", "app": "ExtratoConverter"}
+    return {"status": "ok", "app": "Concilia"}

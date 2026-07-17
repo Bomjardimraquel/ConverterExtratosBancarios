@@ -24,8 +24,17 @@ PASTA_SAIDA = os.path.join(os.path.dirname(__file__), "..", "arquivos_gerados")
 
 
 def _carregar_config_empresa(empresa: str) -> dict:
-    # encoding="utf-8" explícito — sem isso, no Windows o Python tenta ler
-    # com cp1252 por padrão e quebra em qualquer acento do arquivo.
+    """
+    Busca a config da empresa no Postgres (fonte principal agora). Se a
+    variável DATABASE_URL não estiver configurada nesse ambiente, cai pro
+    empresas.json como reserva — útil se algum dia precisar rodar rápido
+    sem banco de pé, ou enquanto confirma que a migração funcionou.
+    """
+    if os.getenv("DATABASE_URL"):
+        from modulo2.db.carregar_config import carregar_config_empresa
+        return carregar_config_empresa(empresa)
+
+    # reserva: sem DATABASE_URL configurada, usa o JSON antigo
     with open(CAMINHO_EMPRESAS_JSON, encoding="utf-8") as f:
         empresas = json.load(f)
     cfg = empresas.get(empresa)

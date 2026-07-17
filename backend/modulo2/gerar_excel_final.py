@@ -12,14 +12,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-COR_HEADER = "7B4FA6"
+COR_HEADER = "5C5C5C"
 COR_TEXTO_HEADER = "FFFFFF"
-COR_CASADO = "F3EEFF"
+COR_CASADO = "F2F2F2"
 COR_REVISAO = "FFEBEE"
 COR_JA_BAIXADO = "FFF3CD"
 COR_AJUSTAVEL = "E3F2FD"  # imposto/folha/aluguel — provavelmente certo, mas pode precisar de ajuste ou split manual
 
-BORDA = Border(*[Side(style="thin", color="D1C4E9")] * 4)
+BORDA = Border(*[Side(style="thin", color="D9D9D9")] * 4)
 
 ORIGEM_LEGIVEL = {
     "despesa": "Despesa", "titulo": "Título",

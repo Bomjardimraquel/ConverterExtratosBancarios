@@ -8,11 +8,19 @@ from typing import Optional
 
 @dataclass
 class LancamentoBanco:
+    """Um lançamento do extrato bancário (Módulo 1 já produz isso)."""
     data: date
-    historico: str
-    detalhe: str
+    historico: str          # texto CRU do extrato — usado pra bater regra de texto/título
+    detalhe: str             # idem — complemento do histórico
     valor: float
-    tipo: str
+    tipo: str                # 'C' (crédito) ou 'D' (débito)
+    # Descrição já formatada pelo Módulo 1 (base.py: "Vr. ref. pix
+    # recebido de Fulano conf. extrato" etc) — opcional. Quando vem
+    # preenchida, o motor usa ELA na planilha final em vez do texto cru
+    # do extrato (mais bonito de importar no Prosoft). O texto cru
+    # (historico/detalhe) continua sendo usado pra bater regra de
+    # texto/título, mesmo quando essa descrição bonita existe.
+    descricao_formatada: Optional[str] = None
 
 
 @dataclass

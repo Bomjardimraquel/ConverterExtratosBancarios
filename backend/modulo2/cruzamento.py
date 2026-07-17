@@ -17,6 +17,54 @@ except ImportError:
     )
 
 
+# ── Regras de texto GENÉRICAS ────────────────────────────────────────────────
+# Valem pra QUALQUER empresa automaticamente, sem precisar escrever na
+# config de cada uma — são as mesmas categorias que o Módulo 1 já
+# classifica (classificador.py), só que aqui no formato que o
+# _casa_regra_texto espera. Testadas antes só na Arandu/Diniz (que tinham
+# a regra escrita à mão na config); isso corrige as outras 14 empresas
+# que nunca tinham ganhado essa regra.
+#
+# Só têm "debito_D" (nunca "credito_C") de propósito: IOF/juros/tarifa só
+# fazem sentido como despesa saindo do banco, nunca como entrada — o
+# _casa_regra_texto já ignora essas regras sozinho quando o lançamento é
+# crédito (falta credito_C, a regra não bate).
+REGRAS_TEXTO_GENERICAS = [
+    {
+        "contem": ["IOF", "DEB.IOF", "DÉB.IOF", "IMPOSTO SOBRE OPERACAO FINANCEIRA"],
+        "debito_D": "53513", "descricao": "IOF",
+    },
+    {
+        "contem": [
+            "JUROS", "JUROS CONTA GARANTIDA", "JUROS VENCIDOS", "ENCARGO",
+            "MORA", "MULTA ATRASO", "JUROS EMPRESTIMO",
+            "ENCARGOS FINANCEIROS", "JUROS FINANCIAMENTO",
+        ],
+        "debito_D": "53501", "descricao": "Juros",
+    },
+    {
+        "contem": [
+            "DEBITO PACOTE SERVICOS", "DÉBITO PACOTE SERVIÇOS", "PGS-CH PROP COOP",
+            "PGS-CH PRÓP COOP", "TARIFA RENOVACAO LIMITE", "TARIFA RENOVAÇÃO LIMITE",
+            "DEB.SEGURO PRESTAMISTA", "DÉB.SEGURO PRESTAMISTA",
+            "CHEQUE PAGO CAIXA", "CHEQUE COMPE INTEGRADA",
+            "TARIFA PACOTE DE SERVICOS", "TARIFA PACOTE DE SERVIÇOS",
+            "SEG CRED PROTEG EMPRESA", "BB SEGURO",
+            "TAR COBRANCA", "TAR COBRAN",
+            "PACOTE DE SERVICO", "PACOTE SERVIÇO", "PACOTE DE SERVIÇOS",
+            "PACOTE SERVICOS", "PACOTE SERVIÇOS",
+            "TARIFA", "TARIFAS", "TAXA BANCARIA", "TAXA BANCÁRIA", "TAXA DE MANUT",
+            "MANUTENCAO CONTA", "MANUTENÇÃO CONTA", "MENSALIDADE",
+            "ANUIDADE", "COBRANCA MENSAL", "COBRANÇA MENSAL", "RENOVACAO CADASTRO",
+            "RENOVAÇÃO CADASTRO", "EXTRATO BANCARIO", "EXTRATO BANCÁRIO",
+            "TALAO", "TALÃO", "TED DOC TARIFA", "TARIFA PIX", "TARIFA TED",
+            "TAR PROCESSAMENTO", "TARIF ADIC", "TARIFA FORNEC",
+        ],
+        "debito_D": "53502", "descricao": "Despesas Bancárias",
+    },
+]
+
+
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
     s = re.sub(r"[.,/&\-_]", " ", s)
@@ -182,7 +230,7 @@ class MotorCruzamento:
                 continue
             usadas.add(i)
             return LancamentoClassificado(
-                data=lanc.data, descricao=lanc.detalhe.strip() or lanc.historico,
+                data=lanc.data, descricao=self._descricao_padrao(lanc),
                 valor=lanc.valor, tipo=lanc.tipo,
                 origem="ja_lancado", confianca="alta", casada=True,
                 referencia=j.historico[:40],
@@ -277,7 +325,7 @@ class MotorCruzamento:
         pj = eh_pj(t.cnpj_cpf)
         if not pj and not self.cfg.get("casa_pf", False):
             return LancamentoClassificado(
-                data=lanc.data, descricao=lanc.detalhe.strip() or lanc.historico,
+                data=lanc.data, descricao=self._descricao_padrao(lanc),
                 valor=lanc.valor, tipo=lanc.tipo,
                 **self._contas_simples(lanc),
                 origem="simples", confianca="baixa", casada=False,
@@ -294,7 +342,7 @@ class MotorCruzamento:
 
         if t.pago:
             return LancamentoClassificado(
-                data=lanc.data, descricao=lanc.detalhe.strip() or lanc.historico,
+                data=lanc.data, descricao=self._descricao_padrao(lanc),
                 valor=lanc.valor, tipo=lanc.tipo,
                 origem="titulo", confianca=confianca, casada=True,
                 aviso=f"JÁ BAIXADO no Prosoft em {t.data_pagto} (título {t.docto}) — pode descartar",
@@ -304,7 +352,7 @@ class MotorCruzamento:
         codigo_terceiro = self._terceiro_por_nome(t.nome)
         if lanc.tipo == "C":
             return LancamentoClassificado(
-                data=lanc.data, descricao=lanc.detalhe.strip() or lanc.historico,
+                data=lanc.data, descricao=self._descricao_padrao(lanc),
                 valor=lanc.valor, tipo=lanc.tipo,
                 conta_debito=self.conta_banco,
                 conta_credito=self.cfg["conta_clientes"],
@@ -315,7 +363,7 @@ class MotorCruzamento:
             )
         else:
             return LancamentoClassificado(
-                data=lanc.data, descricao=lanc.detalhe.strip() or lanc.historico,
+                data=lanc.data, descricao=self._descricao_padrao(lanc),
                 valor=lanc.valor, tipo=lanc.tipo,
                 conta_debito=self.cfg["conta_fornecedores"],
                 terceiro_debito=codigo_terceiro,
@@ -327,7 +375,18 @@ class MotorCruzamento:
 
     def _casa_regra_texto(self, lanc):
         texto = norm(lanc.historico + " " + lanc.detalhe)
-        for regra in self.cfg.get("regras_texto", []):
+        # Regras da empresa primeiro (pode ter algo específico que bate
+        # antes da genérica), depois as genéricas (IOF/juros/despesas
+        # bancárias) — valendo pra QUALQUER empresa, sem precisar
+        # escrever isso na config de cada uma.
+        for lista_regras in (self.cfg.get("regras_texto", []), REGRAS_TEXTO_GENERICAS):
+            resultado = self._tentar_lista_regras_texto(lanc, texto, lista_regras)
+            if resultado:
+                return resultado
+        return None
+
+    def _tentar_lista_regras_texto(self, lanc, texto, lista_regras):
+        for regra in lista_regras:
             if regra.get("contem_todos"):
                 bate = all(contem_termo(texto, p) for p in regra["contem_todos"])
             else:
@@ -346,7 +405,7 @@ class MotorCruzamento:
                         descricao = template.format(nome=nome) if nome else \
                             regra.get("descricao_sem_nome", template.replace(" {nome}", "").replace("{nome}", ""))
                     else:
-                        descricao = template or lanc.detalhe.strip() or lanc.historico
+                        descricao = template or self._descricao_padrao(lanc)
                 else:
                     if lanc.tipo == "D":
                         conta_d = regra.get("debito_D", "")
@@ -357,9 +416,9 @@ class MotorCruzamento:
                     if not (conta_d and conta_c):
                         continue
                     if regra.get("descricao_dinamica"):
-                        descricao = lanc.detalhe.strip() or lanc.historico
+                        descricao = self._descricao_padrao(lanc)
                     else:
-                        descricao = regra.get("descricao", "") or lanc.detalhe.strip() or lanc.historico
+                        descricao = regra.get("descricao", "") or self._descricao_padrao(lanc)
 
                 return LancamentoClassificado(
                     data=lanc.data,
@@ -375,12 +434,23 @@ class MotorCruzamento:
 
     def _classificacao_simples(self, lanc):
         return LancamentoClassificado(
-            data=lanc.data, descricao=lanc.detalhe.strip() or lanc.historico,
+            data=lanc.data, descricao=self._descricao_padrao(lanc),
             valor=lanc.valor, tipo=lanc.tipo,
             **self._contas_simples(lanc),
             origem="simples", confianca="baixa", casada=False,
             aviso="Sem correspondência — revisar classificação",
         )
+
+    def _descricao_padrao(self, lanc) -> str:
+        """
+        Descrição a usar quando nada mais específico (título, despesa,
+        regra de texto com descrição própria) definiu uma — prefere a
+        versão já formatada pelo Módulo 1 ("Vr. ref. pix recebido de
+        Fulano conf. extrato"), porque o texto cru do extrato direto no
+        Prosoft fica feio. Só cai pro texto cru se por algum motivo a
+        formatada não existir.
+        """
+        return lanc.descricao_formatada or lanc.detalhe.strip() or lanc.historico
 
     def _contas_simples(self, lanc):
         caixa = self.cfg.get("conta_caixa", "11002")
