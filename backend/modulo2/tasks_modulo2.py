@@ -11,6 +11,16 @@ infraestrutura nova.
 import os
 import json
 
+from dotenv import load_dotenv
+
+# Carrega backend/.env ANTES de qualquer checagem de DATABASE_URL daqui
+# pra frente. Sem isso, a checagem "os.getenv('DATABASE_URL')" lá embaixo
+# sempre vinha vazia (o .env só era lido depois, dentro do
+# modulo2.db.conexao — mas esse import só acontecia DEPOIS da checagem,
+# tarde demais) e o sistema caía pro JSON mesmo com o .env certinho.
+_CAMINHO_ENV = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(os.path.normpath(_CAMINHO_ENV))
+
 from parsers.factory import get_parser
 from modulo2.cruzamento import MotorCruzamento
 from modulo2.carregador_despesas import carregar_arquivo_despesas_ou_razao

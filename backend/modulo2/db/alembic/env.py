@@ -1,15 +1,22 @@
 import os
 import sys
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
 
 # deixa o Python achar os modelos (tabelas.py), que fica uma pasta acima
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from db.tabelas import SQLModel  # noqa: E402 — importa os modelos pra registrar as tabelas
+
+# Carrega o backend/.env automaticamente, não importa de qual pasta/terminal
+# o alembic for rodado. Antes disso, dependia de alguém ter digitado
+# $env:DATABASE_URL manualmente naquele terminal específico — e isso se
+# perdia assim que a janela fechava, caindo no valor de exemplo genérico
+# que o próprio Alembic cria sozinho (driver://user:pass@localhost/dbname).
+from dotenv import load_dotenv
+_CAMINHO_ENV = os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")
+load_dotenv(os.path.normpath(_CAMINHO_ENV))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -19,6 +26,12 @@ config = context.config
 # usa, em vez de deixar a senha escrita fixa no alembic.ini
 if os.getenv("DATABASE_URL"):
     config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+else:
+    raise RuntimeError(
+        "DATABASE_URL não encontrada. Confirma que existe um arquivo "
+        "'backend/.env' com a linha DATABASE_URL=postgresql+psycopg2://... "
+        "— sem isso o Alembic cai no valor de exemplo genérico e quebra."
+    )
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
