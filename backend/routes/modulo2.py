@@ -5,9 +5,17 @@ from rq.job import Job
 from rq.exceptions import NoSuchJobError
 
 from modulo2.tasks_modulo2 import PASTA_SAIDA
+from modulo2.db.carregar_config import listar_empresas
 from utils.fila import conexao_redis, fila_processamento
 
 router = APIRouter()
+
+
+@router.get("/empresas")
+def get_empresas():
+    """Lista as empresas cadastradas (código, nome, bancos configurados)
+    — usada pelo front pra montar os selects da tela de upload."""
+    return {"empresas": listar_empresas()}
 
 
 @router.post("/processar_completo")

@@ -136,7 +136,7 @@ export default function TabelaRevisao({ lancamentos, onLancamentosChange, onExpo
 
                 return (
                   <tr key={idxReal} style={{
-                    background: editando ? '#f0f6ff' : (i % 2 === 0 ? rowBg : 'var(--surface)'),
+                    background: editando ? 'var(--credit-bg)' : (i % 2 === 0 ? rowBg : 'var(--surface)'),
                     borderLeft,
                     borderBottom: '1px solid var(--border)',
                     transition: 'background 0.15s',
@@ -265,7 +265,7 @@ const tdInput = {
 
 const btnPrimary = {
   padding: '0.6rem 1.3rem',
-  background: 'linear-gradient(135deg, #4BB8E8, #1a7aaa)',
+  background: 'linear-gradient(135deg, var(--blue), var(--blue-dark))',
   color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)',
   fontFamily: 'var(--font-display)', fontWeight: 700,
   fontSize: '0.9rem', cursor: 'pointer', boxShadow: 'var(--shadow)',

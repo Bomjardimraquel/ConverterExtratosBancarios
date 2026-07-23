@@ -432,12 +432,30 @@ class MotorCruzamento:
         return None
 
     def _classificacao_simples(self, lanc):
+        # Aviso personalizado: continua indo pra classificação comum
+        # (banco x caixa), só troca o TEXTO do aviso — pra casos como
+        # transferência entre contas da própria empresa, que não é um
+        # erro/pendência de verdade, só merece uma nota diferente.
+        texto = norm(lanc.historico + " " + lanc.detalhe)
+        aviso_personalizado = None
+        for regra in self.cfg.get("avisos_personalizados", []):
+            if any(contem_termo(texto, p) for p in regra.get("contem", [])):
+                aviso_personalizado = regra.get("aviso", "")
+                break
+
+        if aviso_personalizado is not None:
+            aviso = aviso_personalizado
+        else:
+            # O aviso padrão de "revisar" só faz sentido pra saída
+            # (débito) — entrada (crédito) cair aqui é esperado.
+            aviso = "Sem correspondência: revisar classificação" if lanc.tipo == "D" else ""
+
         return LancamentoClassificado(
             data=lanc.data, descricao=self._descricao_padrao(lanc),
             valor=lanc.valor, tipo=lanc.tipo,
             **self._contas_simples(lanc),
             origem="simples", confianca="baixa", casada=False,
-            aviso="Sem correspondência — revisar classificação",
+            aviso=aviso,
         )
 
     def _descricao_padrao(self, lanc) -> str:

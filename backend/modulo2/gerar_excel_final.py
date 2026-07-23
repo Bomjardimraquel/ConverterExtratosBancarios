@@ -151,7 +151,7 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
     ws2["A1"] = "Cor"; ws2["B1"] = "Significado"
     ws2["A1"].font = ws2["B1"].font = Font(bold=True)
     legendas = [
-        (COR_CASADO, "Casado com despesa, título ou regra de texto (confiável, pode importar direto)"),
+        (COR_CASADO, "Conciliado com despesa, título ou regra de texto (confiável, pode importar direto)"),
         (COR_AJUSTAVEL, "Imposto, folha ou aluguel: classificação provável, mas confira (pode precisar dividir entre contas, corrigir ou apagar)"),
         (COR_JA_BAIXADO, "Título já baixado no Prosoft (nome+valor+data batem): confirmar e descartar, não reimportar"),
         (COR_REVISAO, "Classificação simples (banco x caixa), sem terceiro: precisa revisar antes de importar"),

@@ -24,15 +24,72 @@ class ParserBB(ParserBase):
         r"(?:\s+\d{1,3}(?:\.\d{3})*,\d{2}\s+[CD])?$"
     )
 
+    # Extrato em .txt (colunas de largura fixa): Data / Lançamento /
+    # Detalhes / Nº documento / Valor / Tipo Lançamento. Posições
+    # baseadas no cabeçalho real do arquivo (mesmo texto/estrutura do
+    # extrato em PDF, só que exportado em texto puro em vez de PDF).
+    TXT_VALOR_RE = re.compile(r"(-?\d{1,3}(?:\.\d{3})*,\d{2})\s+([CD])")
+    _TXT_COL_DATA = (0, 20)
+    _TXT_COL_LANCAMENTO = (20, 55)
+    _TXT_COL_DETALHES = (55, 105)
+    _TXT_COL_VALOR = (135, 163)
+
     def parse(self, conteudo: bytes) -> List[LancamentoBase]:
-        with pdfplumber.open(io.BytesIO(conteudo)) as pdf:
-            texto_total = "\n".join(
-                p.extract_text(x_tolerance=3, y_tolerance=3) or "" for p in pdf.pages
-            )
-        if re.search(r"\d{1,3}(?:\.\d{3})*,\d{2}\s+[CD]\b", texto_total):
-            return self._parse_modelo2(texto_total.splitlines())
+        if conteudo[:4] == b"%PDF":
+            with pdfplumber.open(io.BytesIO(conteudo)) as pdf:
+                texto_total = "\n".join(
+                    p.extract_text(x_tolerance=3, y_tolerance=3) or "" for p in pdf.pages
+                )
+            if re.search(r"\d{1,3}(?:\.\d{3})*,\d{2}\s+[CD]\b", texto_total):
+                return self._parse_modelo2(texto_total.splitlines())
+            else:
+                return self._parse_modelo1(texto_total.splitlines())
         else:
-            return self._parse_modelo1(texto_total.splitlines())
+            # não é PDF (não começa com %PDF) — assume extrato em .txt
+            return self._parse_txt(conteudo)
+
+    def _parse_txt(self, conteudo: bytes) -> List[LancamentoBase]:
+        texto = conteudo.decode("utf-8", errors="ignore")
+        resultado = []
+
+        for linha in texto.splitlines():
+            if not linha.strip():
+                continue
+
+            data = linha[self._TXT_COL_DATA[0]:self._TXT_COL_DATA[1]].strip()
+            if not re.match(r"^\d{2}/\d{2}/\d{4}$", data):
+                continue  # pula cabeçalho e qualquer linha sem data no início
+
+            lancamento = linha[self._TXT_COL_LANCAMENTO[0]:self._TXT_COL_LANCAMENTO[1]].strip()
+            # linha de saldo (não é lançamento de verdade) — compara sem
+            # espaço nenhum, porque o saldo final do arquivo vem escrito
+            # como "S A L D O" (letra por letra), diferente do "Saldo
+            # Anterior"/"Saldo do dia" do meio do extrato
+            lancamento_sem_espaco = lancamento.replace(" ", "").lower()
+            if lancamento_sem_espaco in ("saldoanterior", "saldododia", "saldo"):
+                continue
+
+            detalhes = linha[self._TXT_COL_DETALHES[0]:self._TXT_COL_DETALHES[1]].strip()
+            valor_campo = linha[self._TXT_COL_VALOR[0]:self._TXT_COL_VALOR[1]].strip()
+
+            m_val = self.TXT_VALOR_RE.search(valor_campo)
+            if not m_val:
+                continue
+
+            valor_str, indicador = m_val.group(1), m_val.group(2)
+            try:
+                valor = float(valor_str.replace(".", "").replace(",", "."))
+            except ValueError:
+                continue
+            # o texto já costuma vir com o "-" no débito; isso aqui é só
+            # uma garantia extra, caso o sinal não venha explícito
+            if indicador == "D" and valor > 0:
+                valor = -valor
+
+            historico = f"{lancamento} - {detalhes}" if detalhes else lancamento
+            resultado.append(LancamentoBase(data[:5], historico, valor, self.conta_banco))
+
+        return resultado
 
     def _parse_modelo1(self, linhas: List[str]) -> List[LancamentoBase]:
         resultado = []

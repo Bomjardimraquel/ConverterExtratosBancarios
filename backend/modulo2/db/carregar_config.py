@@ -11,6 +11,25 @@ from .conexao import engine
 from .tabelas import Empresa, EmpresaRegra, EmpresaRegraTermo
 
 
+def listar_empresas() -> list:
+    """
+    Lista resumida de todas as empresas — só o suficiente pro front
+    montar os selects (código, nome, quais bancos essa empresa usa).
+    Não remonta a config inteira (regras, terceiros etc), que é bem mais
+    pesado e só faz sentido na hora de processar de verdade.
+    """
+    with Session(engine) as session:
+        empresas = session.exec(select(Empresa).order_by(Empresa.id)).all()
+        return [
+            {
+                "id": e.id,
+                "nome": e.nome,
+                "bancos": [{"key": b.banco_key, "conta": b.conta_banco} for b in e.bancos],
+            }
+            for e in empresas
+        ]
+
+
 def _regra_para_dict(regra: EmpresaRegra, session: Session) -> dict:
     termos_stmt = select(EmpresaRegraTermo).where(EmpresaRegraTermo.regra_id == regra.id)
     termos = session.exec(termos_stmt).all()
@@ -44,14 +63,21 @@ def _regra_para_dict(regra: EmpresaRegra, session: Session) -> dict:
     # nome do campo de conta muda dependendo do contexto — bate com o
     # que regras_texto (debito_D/credito_C) e regras_extras
     # (conta_debito) já esperavam no JSON
+    # nome do campo de conta muda dependendo do contexto — bate com o
+    # que regras_texto (debito_D/credito_C) e regras_extras
+    # (conta_debito) já esperavam no JSON. "aviso_simples" não define
+    # conta nenhuma de propósito — só serve pra trocar o texto do aviso
+    # de um lançamento que continua caindo na classificação comum.
     if regra.contexto == "extrato":
         if regra.conta_debito:
             d["debito_D"] = regra.conta_debito
         if regra.conta_credito:
             d["credito_C"] = regra.conta_credito
-    else:
+    elif regra.contexto == "despesa_bruta":
         if regra.conta_debito:
             d["conta_debito"] = regra.conta_debito
+    # contexto == "aviso_simples": não faz nada aqui, só usa contem/aviso
+    # (já preenchidos acima)
 
     return d
 
@@ -93,10 +119,13 @@ def carregar_config_empresa(empresa_id: str) -> dict:
 
         regras_extrato = sorted([r for r in empresa.regras if r.contexto == "extrato"], key=lambda r: r.ordem)
         regras_despesa = sorted([r for r in empresa.regras if r.contexto == "despesa_bruta"], key=lambda r: r.ordem)
+        regras_aviso = sorted([r for r in empresa.regras if r.contexto == "aviso_simples"], key=lambda r: r.ordem)
 
         if regras_extrato:
             cfg["regras_texto"] = [_regra_para_dict(r, session) for r in regras_extrato]
         if regras_despesa:
             cfg["regras_extras"] = [_regra_para_dict(r, session) for r in regras_despesa]
+        if regras_aviso:
+            cfg["avisos_personalizados"] = [_regra_para_dict(r, session) for r in regras_aviso]
 
         return cfg

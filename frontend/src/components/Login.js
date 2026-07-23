@@ -15,7 +15,7 @@ export default function Login() {
 
   const fazerLogin = async (e) => {
     e.preventDefault();
-    if (!username || !senha) { setErro('Preencha e-mail e senha'); return; }
+    if (!username || !senha) { setErro('Preencha usuário e senha'); return; }
     setLoading(true);
     setErro('');
     try {
@@ -25,7 +25,7 @@ export default function Login() {
         body: JSON.stringify({ username, senha }),
       });
       const data = await res.json();
-      if (!res.ok) { setErro(data.detail || 'E-mail ou senha incorretos'); return; }
+      if (!res.ok) { setErro(data.detail || 'Usuário ou senha incorretos'); return; }
       localStorage.setItem('ec_nome', data.nome);
       window.location.href = '/app';
     } catch {
@@ -37,22 +37,25 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <div className="login-lado-texto">
-        <h1 className="login-titulo">Bem-vindo(a) contador(a),</h1>
-        <p className="login-subtitulo">Para acessar, faça o login com seu e-mail e senha.</p>
-      </div>
-
-      <div className="login-lado-card">
+      <div className="login-card-wrap">
         <div className="login-card">
+          <div className="login-marca">
+            <img src="/logo_concilia.png" alt="Concilia" className="login-marca-icone" />
+            <span className="login-marca-texto">Concilia</span>
+          </div>
+
+          <h1 className="login-titulo">Bem-vindo(a) contador(a),</h1>
+          <p className="login-subtitulo">Para acessar, faça o login com seu usuário e senha.</p>
+
           {erro && <div className="login-erro">{erro}</div>}
 
           <form onSubmit={fazerLogin}>
-            <label className="login-label" htmlFor="login-email">E-mail</label>
+            <label className="login-label" htmlFor="login-email">Usuário</label>
             <input
               id="login-email"
               className="login-input"
-              type="email" value={username} onChange={e => setUsername(e.target.value)}
-              placeholder="seu.email@escritorio.com.br" autoComplete="username"
+              type="text" value={username} onChange={e => setUsername(e.target.value)}
+              placeholder="seu usuário" autoComplete="username"
             />
 
             <label className="login-label" htmlFor="login-senha" style={{ marginTop: '1.1rem' }}>Senha</label>
