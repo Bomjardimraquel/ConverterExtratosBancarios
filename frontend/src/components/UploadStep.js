@@ -57,7 +57,7 @@ export default function UploadStep({ onProcessar, loading }) {
             style={{ ...inputStyle, cursor: 'pointer' }}>
             <option value="">Selecione o banco...</option>
             {BANCOS.map(b => (
-              <option key={b.key} value={b.key}>{b.nome} — Acesso {b.conta}</option>
+              <option key={b.key} value={b.key}>{b.nome}: Acesso {b.conta}</option>
             ))}
           </select>
         </div>
@@ -71,7 +71,7 @@ export default function UploadStep({ onProcessar, loading }) {
           <div>
             <Label>Mês/Ano</Label>
             <input type="text" value={mesAno} onChange={e => setMesAno(e.target.value)}
-              placeholder="Ex: novembro/2025" style={inputStyle} />
+              placeholder="Ex: 01/2026" style={inputStyle} />
           </div>
         </div>
 
@@ -81,7 +81,7 @@ export default function UploadStep({ onProcessar, loading }) {
             {...getRootProps()}
             className="dropzone"
             style={{
-              border: `1.5px dashed ${isDragActive || arquivo ? 'var(--blue)' : 'var(--border)'}`,
+              border: `1.5px dashed ${isDragActive || arquivo ? 'var(--musgo)' : 'var(--border)'}`,
               borderRadius: 'var(--radius-sm)',
               padding: '2rem',
               textAlign: 'center',
@@ -91,7 +91,7 @@ export default function UploadStep({ onProcessar, loading }) {
             }}
           >
             <input {...getInputProps()} />
-            <div style={{ marginBottom: '0.75rem', color: arquivo ? 'var(--blue)' : 'var(--text-muted)' }}>
+            <div style={{ marginBottom: '0.75rem', color: arquivo ? 'var(--musgo)' : 'var(--text-muted)' }}>
               {arquivo ? (
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto', display: 'block' }}>
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
@@ -103,7 +103,7 @@ export default function UploadStep({ onProcessar, loading }) {
               )}
             </div>
             {arquivo ? (
-              <div style={{ fontWeight: 600, color: 'var(--blue)', fontSize: '0.9rem' }}>{arquivo.name}</div>
+              <div style={{ fontWeight: 600, color: 'var(--musgo)', fontSize: '0.9rem' }}>{arquivo.name}</div>
             ) : (
               <>
                 <div style={{ fontWeight: 500, color: 'var(--navy)', fontSize: '0.9rem' }}>
@@ -118,7 +118,7 @@ export default function UploadStep({ onProcessar, loading }) {
         </div>
 
         <button type="submit" disabled={!arquivo || !banco || loading} className="btn-pill btn-pill-primario">
-          {loading ? 'Processando...' : 'Processar Extrato'}
+          {loading ? 'Processando...' : 'Processar extrato'}
         </button>
       </form>
     </>

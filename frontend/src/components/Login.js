@@ -44,7 +44,7 @@ export default function Login() {
             <span className="login-marca-texto">Concilia</span>
           </div>
 
-          <h1 className="login-titulo">Bem-vindo(a) contador(a),</h1>
+          <h1 className="login-titulo">Olá, contador</h1>
           <p className="login-subtitulo">Para acessar, faça o login com seu usuário e senha.</p>
 
           {erro && <div className="login-erro">{erro}</div>}

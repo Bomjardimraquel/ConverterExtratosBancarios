@@ -111,7 +111,7 @@ export default function UploadModulo2() {
       <>
         <div className="pagina-topbar">
           <div className="pagina-topbar-titulo">Processando</div>
-          <div className="pagina-topbar-sub">Extrato, títulos e despesas sendo cruzados — geralmente leva poucos segundos</div>
+          <div className="pagina-topbar-sub">Extrato, títulos e despesas sendo conciliados, geralmente leva poucos segundos</div>
         </div>
         <div className="pagina-corpo">
           <div className="spinner" style={{ margin: '2rem 0' }} />
@@ -169,7 +169,7 @@ export default function UploadModulo2() {
           {resultado.despesas_brutas_nao_classificadas > 0 && (
             <div className="box-simples" style={{ background: 'var(--debit-bg)', borderColor: 'var(--debit-border)', fontSize: '0.82rem', color: 'var(--navy)' }}>
               {resultado.despesas_brutas_nao_classificadas} despesa(s) do arquivo bruto não foram
-              reconhecidas automaticamente — considere revisar e, se for um padrão novo, avisar
+              reconhecidas automaticamente, considere revisar e, se for um padrão novo, avisar
               pra virar regra permanente.
             </div>
           )}
@@ -189,7 +189,7 @@ export default function UploadModulo2() {
     <>
       <div className="pagina-topbar">
         <div className="pagina-topbar-titulo">Conciliação completa</div>
-        <div className="pagina-topbar-sub">Extrato + títulos + despesas, tudo cruzado de uma vez</div>
+        <div className="pagina-topbar-sub">Conciliação de extrato, títulos e despesas</div>
       </div>
 
       <form onSubmit={handleSubmit} className="pagina-corpo">
@@ -208,7 +208,7 @@ export default function UploadModulo2() {
               {carregandoEmpresas ? 'Carregando...' : 'Selecione a empresa...'}
             </option>
             {empresas.map(e => (
-              <option key={e.id} value={e.id}>{e.id} — {e.nome}</option>
+              <option key={e.id} value={e.id}>{e.id} ({e.nome})</option>
             ))}
           </select>
         </div>
@@ -284,7 +284,7 @@ export default function UploadModulo2() {
             'application/vnd.ms-excel': ['.xls'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
           }}
-          dica=".xls ou .xlsx — o formato é detectado automaticamente"
+          dica=".xls ou .xlsx, o formato é detectado automaticamente"
           arquivo={arquivoDespesas}
           onArquivo={setArquivoDespesas}
         />
@@ -294,7 +294,7 @@ export default function UploadModulo2() {
           onClick={() => setMostrarModeloOpcional(v => !v)}
           style={{
             background: 'none', border: 'none', padding: 0,
-            color: 'var(--blue-dark)', fontSize: '0.82rem', fontWeight: 600,
+            color: 'var(--musgo-escuro)', fontSize: '0.82rem', fontWeight: 600,
             cursor: 'pointer', textDecoration: 'underline', textAlign: 'left',
           }}
         >
@@ -338,7 +338,7 @@ function FileField({ label, aceita, dica, arquivo, onArquivo }) {
         {...getRootProps()}
         className="dropzone"
         style={{
-          border: `1.5px dashed ${isDragActive || arquivo ? 'var(--blue)' : 'var(--border)'}`,
+          border: `1.5px dashed ${isDragActive || arquivo ? 'var(--musgo)' : 'var(--border)'}`,
           borderRadius: 'var(--radius-sm)', padding: '1.1rem 1rem',
           textAlign: 'center', cursor: 'pointer',
           background: isDragActive || arquivo ? 'var(--credit-bg)' : 'var(--surface)',
@@ -347,7 +347,7 @@ function FileField({ label, aceita, dica, arquivo, onArquivo }) {
       >
         <input {...getInputProps()} />
         {arquivo ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600, color: 'var(--blue)', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600, color: 'var(--musgo)', fontSize: '0.85rem' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
             {arquivo.name}
           </div>

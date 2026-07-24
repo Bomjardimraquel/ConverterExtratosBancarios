@@ -3,7 +3,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   /* Paleta: verde-musgo (ação/destaque) + rosa-chá (crédito/acento suave) + branco */
-  --blue: #6B7A5E; --blue-dark: #4F5C44; --blue-mid: #5F6F52;
+  --musgo: #6B7A5E; --musgo-escuro: #4F5C44; --musgo-medio: #5F6F52;
   --accent: #6B7A5E; --accent-dark: #4F5C44;
   --navy: #3A3630; --navy-mid: #52493F;
   --bg: #FAF7F4; --surface: #ffffff; --surface2: #F5F1EC;
@@ -26,7 +26,7 @@ input, select { font-family: var(--font-body); }
 .spinner {
   width: 40px; height: 40px;
   border: 3px solid var(--border);
-  border-top-color: var(--blue);
+  border-top-color: var(--musgo);
   border-radius: 50%;
   animation: girar 0.8s linear infinite;
   margin: 0 auto;
@@ -42,7 +42,7 @@ input, select { font-family: var(--font-body); }
 .sidebar {
   width: 230px;
   flex-shrink: 0;
-  background: var(--blue-dark);
+  background: var(--musgo-escuro);
   display: flex;
   flex-direction: column;
   padding: 1.5rem 1rem;
@@ -127,7 +127,7 @@ input, select { font-family: var(--font-body); }
   border-bottom: 1px solid var(--border);
   padding: 1.1rem 2rem;
 }
-.pagina-topbar-titulo { font-size: 1.05rem; font-weight: 700; color: var(--navy); letter-spacing: -0.01em; }
+.pagina-topbar-titulo { font-size: 1.05rem; font-weight: 700; color: var(--musgo-escuro); letter-spacing: -0.01em; }
 .pagina-topbar-sub { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem; }
 .pagina-corpo {
   padding: 1.5rem 2rem;
@@ -139,7 +139,7 @@ input, select { font-family: var(--font-body); }
 .eyebrow {
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--blue-dark);
+  color: var(--musgo-escuro);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -160,7 +160,7 @@ input, select { font-family: var(--font-body); }
 }
 .campo-linha-label { font-size: 0.85rem; color: var(--navy); flex: 1; }
 .dropzone:hover {
-  border-color: var(--blue) !important;
+  border-color: var(--musgo) !important;
 }
 .btn-pill {
   border: none;
@@ -173,7 +173,7 @@ input, select { font-family: var(--font-body); }
   transition: all 0.15s;
   width: 100%;
 }
-.btn-pill-primario { background: var(--blue-dark); color: #fff; }
+.btn-pill-primario { background: var(--musgo-escuro); color: #fff; }
 .btn-pill-primario:hover:not(:disabled) { filter: brightness(1.12); cursor: pointer; }
 .btn-pill-secundario { background: var(--surface); color: var(--navy); border: 1px solid var(--border); }
 .btn-pill-secundario:hover:not(:disabled) { background: var(--surface2); }
@@ -272,7 +272,7 @@ input, select { font-family: var(--font-body); }
   background: var(--surface2);
   outline: none;
 }
-.login-input:focus { border-color: var(--blue); }
+.login-input:focus { border-color: var(--musgo); }
 .login-toggle-senha {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   background: none; border: none; color: var(--text-muted);
@@ -286,7 +286,7 @@ input, select { font-family: var(--font-body); }
 .login-botao {
   width: 100%;
   padding: 0.85rem;
-  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  background: var(--musgo-escuro);
   color: #fff; border: none; border-radius: var(--radius-sm);
   font-weight: 700; font-size: 0.92rem;
   box-shadow: 0 6px 20px rgba(107,122,94,0.3);
