@@ -12,14 +12,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-COR_HEADER = "5C5C5C"
+COR_HEADER = "4F5C44"       # verde-musgo escuro
 COR_TEXTO_HEADER = "FFFFFF"
-COR_CASADO = "F2F2F2"
-COR_REVISAO = "FFEBEE"
-COR_JA_BAIXADO = "FFF3CD"
-COR_AJUSTAVEL = "E3F2FD"  # imposto/folha/aluguel — provavelmente certo, mas pode precisar de ajuste ou split manual
+COR_CASADO = "EDF1E7"       # verde-musgo bem claro — confiável, pode importar
+COR_REVISAO = "F5D4CC"      # rosa-chá mais forte — precisa de atenção
+COR_JA_BAIXADO = "F3E8D0"   # tom quente neutro — já baixado, só descartar
+COR_AJUSTAVEL = "F8EBE8"    # rosa-chá bem claro — provavelmente certo, mas confira
 
-BORDA = Border(*[Side(style="thin", color="D9D9D9")] * 4)
+BORDA = Border(*[Side(style="thin", color="E6DFD6")] * 4)
 
 ORIGEM_LEGIVEL = {
     "despesa": "Despesa", "titulo": "Título",
@@ -145,6 +145,33 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
         wsp.column_dimensions['D'].width = 45
         wsp.column_dimensions['E'].width = 60
         wsp.auto_filter.ref = f"A2:E{2 + len(pendencias)}"
+
+    # ── aba Conciliados (só se existir algum "já lançado") ─────────────
+    # Mostra os itens do razão/despesa que JÁ CASARAM com o extrato — não
+    # entram na aba principal de propósito (não devem ser reimportados),
+    # mas fica visível que o sistema achou eles certinho, pra conferir se
+    # o cruzamento está funcionando direito e não só ver o que falhou.
+    ja_lancados = motor.resultado_ja_lancados(resultado)
+    if ja_lancados:
+        wsc = wb.create_sheet("Conciliados")
+        c_headers = ["Data", "Valor (R$)", "Tipo", "Descrição", "Casou com (extrato)"]
+        _cabecalho(wsc, "Já conciliados com o extrato (conferência)", c_headers, len(c_headers))
+        for i, r in enumerate(ja_lancados, 3):
+            fill = PatternFill("solid", fgColor=COR_CASADO)
+            vals = [r.data.strftime("%d/%m/%Y"), r.valor, "Crédito" if r.tipo == "C" else "Débito",
+                    _remover_travessoes(r.descricao), _remover_travessoes(r.referencia or "")]
+            for col, val in enumerate(vals, 1):
+                cell = wsc.cell(row=i, column=col, value=val)
+                cell.fill = fill
+                cell.border = BORDA
+                if col == 2:
+                    cell.number_format = "#,##0.00"
+        wsc.column_dimensions['A'].width = 12
+        wsc.column_dimensions['B'].width = 14
+        wsc.column_dimensions['C'].width = 10
+        wsc.column_dimensions['D'].width = 55
+        wsc.column_dimensions['E'].width = 45
+        wsc.auto_filter.ref = f"A2:E{2 + len(ja_lancados)}"
 
     # ── aba Legenda ──────────────────────────────────────────────────────
     ws2 = wb.create_sheet("Legenda")

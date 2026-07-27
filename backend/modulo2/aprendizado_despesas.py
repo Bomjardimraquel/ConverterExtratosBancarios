@@ -20,6 +20,8 @@ regra de texto sem match.
 """
 import io
 import re
+import csv
+import datetime
 import unicodedata
 from collections import defaultdict, Counter
 
@@ -38,10 +40,105 @@ def _norm(s) -> str:
     return " ".join(s.upper().split())
 
 
+def _norm_cabecalho(s: str) -> str:
+    """Normaliza nome de coluna pra comparar sem depender de acento,
+    ponto ou espaço extra ('D. Realização' vira 'D REALIZACAO')."""
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
+    s = re.sub(r"[.\-_/]", " ", s)
+    return " ".join(s.upper().split())
+
+
+def _converter_celula_csv(valor: str):
+    """CSV/TSV só tem texto — tenta converter pro tipo real (data ou
+    número), igual o openpyxl já devolve nativamente pra .xlsx. Deixa
+    como string se não parecer nem data nem número."""
+    if valor is None:
+        return None
+    texto = valor.strip()
+    if texto == "":
+        return None
+    m = re.match(r"^(\d{2})/(\d{2})/(\d{4})$", texto)
+    if m:
+        d, mes, a = m.groups()
+        try:
+            return datetime.date(int(a), int(mes), int(d))
+        except ValueError:
+            return texto
+    # número no formato brasileiro (vírgula decimal, sem separador de milhar
+    # ambíguo aqui já que os valores de despesa não costumam ter milhar)
+    if re.match(r"^-?\d+(,\d+)?$", texto):
+        try:
+            return float(texto.replace(",", "."))
+        except ValueError:
+            return texto
+    return texto
+
+
 def _abrir_planilha(caminho_ou_bytes):
-    origem = io.BytesIO(caminho_ou_bytes) if isinstance(caminho_ou_bytes, (bytes, bytearray)) else caminho_ou_bytes
-    wb = load_workbook(origem, data_only=True)
-    return wb.active
+    """
+    Devolve (cabecalho, linhas) — lista de tuplas, já sem o cabeçalho.
+    Aceita tanto .xlsx de verdade (ZIP) quanto CSV/TSV de texto puro (o
+    caso real: a Arandu manda às vezes um arquivo com extensão .csv que,
+    por dentro, é texto separado por tabulação — abre no Excel por
+    associação do Windows, mas não é um .xlsx de verdade).
+    """
+    if isinstance(caminho_ou_bytes, (bytes, bytearray)):
+        conteudo = caminho_ou_bytes
+    else:
+        with open(caminho_ou_bytes, "rb") as f:
+            conteudo = f.read()
+
+    if conteudo[:4] == b"PK\x03\x04":
+        wb = load_workbook(io.BytesIO(conteudo), data_only=True)
+        ws = wb.active
+        linhas = list(ws.iter_rows(values_only=True))
+        return linhas[0], linhas[1:]
+
+    # Não é ZIP — trata como texto (CSV ou TSV). Detecta o separador
+    # olhando a primeira linha: tabulação é o mais comum nesses exports,
+    # mas aceita vírgula ou ponto e vírgula também.
+    for encoding in ("utf-8-sig", "utf-8", "windows-1252", "latin-1"):
+        try:
+            texto = conteudo.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise ValueError("Não consegui decodificar o arquivo CSV (codificação desconhecida).")
+
+    primeira_linha = texto.splitlines()[0] if texto.splitlines() else ""
+    contagens = {"\t": primeira_linha.count("\t"), ";": primeira_linha.count(";"), ",": primeira_linha.count(",")}
+    separador = max(contagens, key=contagens.get)
+
+    leitor = csv.reader(io.StringIO(texto), delimiter=separador)
+    todas_linhas = [tuple(row) for row in leitor if any(c.strip() for c in row)]
+    if not todas_linhas:
+        raise ValueError("Arquivo CSV está vazio.")
+
+    cabecalho = todas_linhas[0]
+    linhas = [tuple(_converter_celula_csv(c) for c in row) for row in todas_linhas[1:]]
+    return cabecalho, linhas
+
+
+def _indice_colunas(cabecalho, nomes_esperados: dict) -> dict:
+    """
+    Acha o índice de cada coluna pelo NOME (não pela posição fixa) — o
+    arquivo real pode ter coluna a mais/reordenada (ex: a Arandu manda um
+    CSV com "D. Emissão" no meio, que o formato original de 13 colunas
+    não tinha). `nomes_esperados` é {chave_interna: [aliases possíveis]}.
+    Levanta ValueError se alguma coluna OBRIGATÓRIA não for encontrada.
+    """
+    cabecalho_norm = [_norm_cabecalho(c) for c in cabecalho]
+    indices = {}
+    for chave, aliases in nomes_esperados.items():
+        idx = None
+        for alias in aliases:
+            alias_norm = _norm_cabecalho(alias)
+            if alias_norm in cabecalho_norm:
+                idx = cabecalho_norm.index(alias_norm)
+                break
+        indices[chave] = idx
+    return indices
 
 
 def treinar_classificador_despesas(caminho_ou_bytes_classificado) -> dict:
@@ -59,8 +156,7 @@ def treinar_classificador_despesas(caminho_ou_bytes_classificado) -> dict:
         },
       }
     """
-    ws = _abrir_planilha(caminho_ou_bytes_classificado)
-    linhas = list(ws.iter_rows(values_only=True))[1:]  # pula cabeçalho
+    _cabecalho, linhas = _abrir_planilha(caminho_ou_bytes_classificado)
 
     contas_por_favorecido = defaultdict(list)  # favorecido -> [(descricao, conta_debito), ...]
     for row in linhas:
@@ -269,18 +365,41 @@ def carregar_despesas_brutas(
         data, forma_pagamento) — Favorecido/Descrição sem match no
         modelo aprendido, precisa de olho humano
     """
-    ws = _abrir_planilha(caminho_ou_bytes)
-    linhas = list(ws.iter_rows(values_only=True))[1:]  # pula cabeçalho
+    NOMES_ESPERADOS = {
+        "d_realizacao": ["D. Realização", "D Realizacao"],
+        "v_recebido": ["V. Recebido", "V Recebido"],
+        "v_realizado": ["V. Realizado", "V Realizado"],
+        "favorecido": ["Favorecido"],
+        "razao_social": ["Razão Social", "Razao Social"],
+        "forma_pagamento": ["Forma Pagamento"],
+        "descricao": ["Descrição", "Descricao"],
+    }
+    cabecalho, linhas = _abrir_planilha(caminho_ou_bytes)
+    idx = _indice_colunas(cabecalho, NOMES_ESPERADOS)
+    faltando = [k for k in ("d_realizacao", "v_realizado", "favorecido") if idx[k] is None]
+    if faltando:
+        raise ValueError(
+            f"Não achei a(s) coluna(s) {faltando} no cabeçalho do arquivo de movimento bruto. "
+            f"Cabeçalho encontrado: {list(cabecalho)}"
+        )
+
+    def val(row, chave):
+        i = idx[chave]
+        return row[i] if i is not None and i < len(row) else None
 
     despesas_classificadas = []
     nao_classificadas = []
 
     for row in linhas:
-        if not row or row[1] is None:  # sem D. Realização, ignora
+        d_realizacao = val(row, "d_realizacao")
+        if d_realizacao is None:  # sem D. Realização, ignora
             continue
-        (d_previsao, d_realizacao, d_conciliacao, v_previsto, v_recebido,
-         v_realizado, favorecido, razao_social, forma_pagamento,
-         cartao_doc, cartao_aut, descricao, observacao) = (list(row) + [None] * 13)[:13]
+        v_recebido = val(row, "v_recebido")
+        v_realizado = val(row, "v_realizado")
+        favorecido = val(row, "favorecido")
+        razao_social = val(row, "razao_social")
+        forma_pagamento = val(row, "forma_pagamento")
+        descricao = val(row, "descricao")
 
         if v_recebido is not None:
             continue  # é recebimento, não despesa — ignora

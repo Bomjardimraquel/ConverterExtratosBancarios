@@ -82,35 +82,25 @@ export default function UploadStep({ onProcessar, loading }) {
             className="dropzone"
             style={{
               border: `1.5px dashed ${isDragActive || arquivo ? 'var(--musgo)' : 'var(--border)'}`,
-              borderRadius: 'var(--radius-sm)',
-              padding: '2rem',
-              textAlign: 'center',
-              cursor: 'pointer',
+              borderRadius: 'var(--radius-sm)', padding: '1.1rem 1rem',
+              textAlign: 'center', cursor: 'pointer',
               background: isDragActive || arquivo ? 'var(--credit-bg)' : 'var(--surface)',
               transition: 'all 0.2s',
             }}
           >
             <input {...getInputProps()} />
-            <div style={{ marginBottom: '0.75rem', color: arquivo ? 'var(--musgo)' : 'var(--text-muted)' }}>
-              {arquivo ? (
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto', display: 'block' }}>
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              ) : (
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto', display: 'block' }}>
-                  <path d="M12 3v12" /><path d="m7 8 5-5 5 5" /><path d="M5 21h14" />
-                </svg>
-              )}
-            </div>
             {arquivo ? (
-              <div style={{ fontWeight: 600, color: 'var(--musgo)', fontSize: '0.9rem' }}>{arquivo.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600, color: 'var(--musgo)', fontSize: '0.85rem' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                {arquivo.name}
+              </div>
             ) : (
               <>
-                <div style={{ fontWeight: 500, color: 'var(--navy)', fontSize: '0.9rem' }}>
-                  {isDragActive ? 'Solte aqui!' : 'Arraste o PDF ou clique para selecionar'}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  Apenas arquivos .pdf
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 0.4rem', display: 'block' }}>
+                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="M12 12v9" /><path d="m16 16-4-4-4 4" />
+                </svg>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {isDragActive ? 'Solte aqui!' : 'Arraste ou clique para selecionar (PDF)'}
                 </div>
               </>
             )}

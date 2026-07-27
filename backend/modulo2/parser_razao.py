@@ -54,10 +54,6 @@ def agrupar_duplicatas_com_juros(lista: list) -> list:
         if len(itens) == 1:
             resultado.append(itens[0])
             continue
-        # mais de uma linha pra mesma duplicata (principal + juros/multa)
-        # — soma tudo, usa a data mais antiga, mantém o histórico mais
-        # curto como "principal" (o de juros/multa costuma ser mais longo,
-        # por causa do "juros/multa s/" na frente)
         itens_ordenados = sorted(itens, key=lambda x: x.data)
         valor_total = sum(x.valor for x in itens)
         principal = min(itens, key=lambda x: len(x.historico))

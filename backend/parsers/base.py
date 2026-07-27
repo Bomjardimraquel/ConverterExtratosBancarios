@@ -64,7 +64,7 @@ REGRAS_DESCRICAO = [
             "deb.tit.compe", "déb.tit.compe", "tit.compe efetivado",
             "cheque compe", "cheque pago", "deb. pagamento de boleto",
         ],
-        "template": "Pg. ref. boleto conf. extrato",
+        "template": "Pg. ref. ({descricao}) conf. extrato",
     },
 
     {"tipo": "classificacao", "match": "Despesas Bancárias", "template": "Vr.deb.n/cta.{banco} ref.desp bancarias"},
@@ -96,7 +96,10 @@ def formatar_descricao(descricao: str, valor: float, conta_banco: str, classific
 
         if tipo == "keyword":
             if any(kw in desc_norm for kw in regra["match"]):
-                return regra["template"]
+                if eh_credito:
+                    return "Vr. ref. boletos recebidos conf. extrato"
+                detalhe = re.sub(r"\s+", " ", descricao).strip()[:50]
+                return regra["template"].format(descricao=detalhe)
 
         elif tipo == "classificacao":
             if classificacao == regra["match"]:

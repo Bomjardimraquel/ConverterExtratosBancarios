@@ -1,8 +1,8 @@
 import React from 'react';
 
 const ITENS = [
-  { key: '1', label: 'Extrato Simples' },
-  { key: '2', label: 'Conciliação Completa' },
+  { key: '1', label: 'Extrato simples' },
+  { key: '2', label: 'Conciliação completa' },
 ];
 
 export default function Sidebar({ modulo, onTrocarModulo }) {

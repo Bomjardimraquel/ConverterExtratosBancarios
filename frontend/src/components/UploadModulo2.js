@@ -26,12 +26,10 @@ export default function UploadModulo2() {
   const [ano, setAno] = useState(String(ANO_ATUAL));
   const [tipoTitulos, setTipoTitulos] = useState('receber');
   const [nomeEmpresa, setNomeEmpresa] = useState('');
-  const [mostrarModeloOpcional, setMostrarModeloOpcional] = useState(false);
 
   const [extrato, setExtrato] = useState(null);
   const [arquivoTitulos, setArquivoTitulos] = useState(null);
   const [arquivoDespesas, setArquivoDespesas] = useState(null);
-  const [arquivoModelo, setArquivoModelo] = useState(null);
 
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState('');
@@ -65,7 +63,6 @@ export default function UploadModulo2() {
         empresa: empresaId, banco, mesAno: `${mes}/${ano}`,
         tipoTitulos, nomeEmpresa,
         extrato, arquivoTitulos, arquivoDespesasOuRazao: arquivoDespesas,
-        arquivoModeloClassificado: arquivoModelo,
       });
       iniciarPolling(res.data.job_id);
     } catch (err) {
@@ -103,7 +100,6 @@ export default function UploadModulo2() {
     setExtrato(null);
     setArquivoTitulos(null);
     setArquivoDespesas(null);
-    setArquivoModelo(null);
   };
 
   if (etapa === 'processando') {
@@ -232,7 +228,7 @@ export default function UploadModulo2() {
             </select>
           </div>
           <div>
-            <Label>Títulos são de *</Label>
+            <Label>Títulos a *</Label>
             <select
               value={tipoTitulos}
               onChange={e => setTipoTitulos(e.target.value)}
@@ -283,36 +279,12 @@ export default function UploadModulo2() {
           aceita={{
             'application/vnd.ms-excel': ['.xls'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'text/csv': ['.csv'],
           }}
-          dica=".xls ou .xlsx, o formato é detectado automaticamente"
+          dica=".xls, .xlsx ou .csv, o formato é detectado automaticamente"
           arquivo={arquivoDespesas}
           onArquivo={setArquivoDespesas}
         />
-
-        <button
-          type="button"
-          onClick={() => setMostrarModeloOpcional(v => !v)}
-          style={{
-            background: 'none', border: 'none', padding: 0,
-            color: 'var(--musgo-escuro)', fontSize: '0.82rem', fontWeight: 600,
-            cursor: 'pointer', textDecoration: 'underline', textAlign: 'left',
-          }}
-        >
-          {mostrarModeloOpcional ? '− Ocultar' : '+ Preciso ensinar fornecedor novo (opcional)'}
-        </button>
-
-        {mostrarModeloOpcional && (
-          <FileField
-            label="Mês já classificado, como referência"
-            aceita={{
-              'application/vnd.ms-excel': ['.xls'],
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-            }}
-            dica="só necessário se o arquivo de despesas for o formato bruto e tiver fornecedor que as regras ainda não reconhecem"
-            arquivo={arquivoModelo}
-            onArquivo={setArquivoModelo}
-          />
-        )}
 
         <button type="submit" disabled={!tudoPreenchido} className="btn-pill btn-pill-primario">
           Processar tudo

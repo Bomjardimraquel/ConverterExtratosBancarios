@@ -59,9 +59,18 @@ REGRAS_TEXTO_GENERICAS = [
             "TALAO", "TALÃO", "TED DOC TARIFA", "TARIFA PIX", "TARIFA TED",
             "TAR PROCESSAMENTO", "TARIF ADIC", "TARIFA FORNEC",
         ],
-        "debito_D": "53502", "descricao": "Despesas Bancárias",
+        "debito_D": "53502", "descricao": "Vr.deb.n/cta.{banco} ref.desp Bancarias",
     },
 ]
+
+# Nome de exibição de cada banco, pelo código da conta — usado só pra
+# preencher o "{banco}" no template de descrição acima. Baseado nos
+# códigos que já vemos repetidos entre as empresas (mesmo plano de contas
+# pra todo mundo, é o mesmo escritório).
+MAPA_CONTA_BANCO_NOME = {
+    "11120": "Sicoob", "11041": "BB", "11045": "Itaú",
+    "11126": "Santander", "11127": "PagBank", "11044": "Bradesco",
+}
 
 
 def norm(s: str) -> str:
@@ -216,6 +225,14 @@ class MotorCruzamento:
     @staticmethod
     def resultado_pendencias(resultado: list) -> list:
         return [r for r in resultado if r.origem in ("pendencia_razao", "pendencia_despesa")]
+
+    @staticmethod
+    def resultado_ja_lancados(resultado: list) -> list:
+        """Itens do razão que JÁ FORAM encontrados/casados no extrato —
+        pra conferência (não aparecem na aba principal de propósito, já
+        que não devem ser reimportados, mas fica visível que o sistema
+        achou eles certinho, não só os que falharam)."""
+        return [r for r in resultado if r.origem == "ja_lancado"]
 
     def _ja_lancado(self, lanc, ja_lancadas, usadas):
         for i, j in enumerate(ja_lancadas):
@@ -418,6 +435,9 @@ class MotorCruzamento:
                         descricao = self._descricao_padrao(lanc)
                     else:
                         descricao = regra.get("descricao", "") or self._descricao_padrao(lanc)
+                        if "{banco}" in descricao:
+                            nome_banco = MAPA_CONTA_BANCO_NOME.get(self.conta_banco, self.conta_banco)
+                            descricao = descricao.format(banco=nome_banco)
 
                 return LancamentoClassificado(
                     data=lanc.data,

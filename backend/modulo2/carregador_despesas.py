@@ -77,9 +77,24 @@ def detectar_tipo_arquivo(conteudo: bytes) -> str:
         if "schemas-microsoft-com:office:spreadsheet" in inicio or "<?xml" in inicio[:100]:
             return "razao_prosoft"
 
+    # CSV/TSV de texto puro (não é ZIP nem XML) — caso real: a Arandu
+    # manda às vezes um arquivo com extensão .csv que abre no Excel só
+    # por associação do Windows, mas por dentro é texto separado por
+    # tabulação. Se a primeira linha tiver "FAVORECIDO", é movimento_bruto
+    # também, só que em formato texto em vez de .xlsx de verdade.
+    for encoding in ("utf-8-sig", "utf-8", "windows-1252", "latin-1"):
+        try:
+            primeira_linha = conteudo.decode(encoding, errors="ignore").splitlines()[0]
+            if "FAVORECIDO" in primeira_linha.upper():
+                return "movimento_bruto"
+            break
+        except Exception:
+            continue
+
     raise ValueError(
-        "Não consegui identificar o tipo do arquivo (não parece xlsx nem "
-        "razão SpreadsheetML do Prosoft). Confirma se o arquivo certo foi enviado."
+        "Não consegui identificar o tipo do arquivo (não parece xlsx, CSV de "
+        "movimento bruto, nem razão SpreadsheetML do Prosoft). Confirma se o "
+        "arquivo certo foi enviado."
     )
 
 
