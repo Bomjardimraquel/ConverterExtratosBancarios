@@ -9,6 +9,20 @@ import { processarExtrato, consultarStatusJob, exportarExcel } from './utils/api
 
 const INTERVALO_POLLING_MS = 2000;
 
+// FastAPI, quando recusa por validação (422), manda o "detail" como uma
+// LISTA DE OBJETOS ({type, loc, msg, ...}), não texto simples — se
+// tentar mostrar isso direto na tela, o React quebra ("Objects are not
+// valid as a React child"). Essa função sempre devolve uma string.
+function extrairMensagemErro(err, padrao) {
+  const detail = err.response?.data?.detail;
+  if (!detail) return padrao;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map(d => `${(d.loc || []).join(' → ')}: ${d.msg}`).join(' | ');
+  }
+  return padrao;
+}
+
 function AppContent() {
   const [modulo, setModulo] = useState('1'); // '1' | '2'
   const [etapa, setEtapa] = useState('upload'); // upload | processando | resultado
@@ -43,7 +57,7 @@ function AppContent() {
       const jobId = res.data.job_id;
       iniciarPolling(jobId, banco, nomeEmpresa, mesAno);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erro ao enviar o arquivo.');
+      toast.error(extrairMensagemErro(err, 'Erro ao enviar o arquivo.'));
       setLoading(false);
       setEtapa('upload');
     }

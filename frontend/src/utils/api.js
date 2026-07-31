@@ -68,7 +68,9 @@ export const processarCompletoModulo2 = ({
   form.append('tipo_titulos', tipoTitulos);
   form.append('nome_empresa', nomeEmpresa || '');
   form.append('extrato', extrato);
-  form.append('arquivo_titulos', arquivoTitulos);
+  if (arquivoTitulos) {
+    form.append('arquivo_titulos', arquivoTitulos);
+  }
   if (arquivoDespesas) {
     form.append('arquivo_despesas', arquivoDespesas);
   }

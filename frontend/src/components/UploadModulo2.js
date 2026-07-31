@@ -15,6 +15,21 @@ const MESES = [
 const ANO_ATUAL = new Date().getFullYear();
 const ANOS = [ANO_ATUAL - 1, ANO_ATUAL, ANO_ATUAL + 1];
 
+// FastAPI, quando recusa por validação (422), manda o "detail" como uma
+// LISTA DE OBJETOS ({type, loc, msg, ...}), não texto simples — se
+// tentar mostrar isso direto na tela, o React quebra ("Objects are not
+// valid as a React child"). Essa função sempre devolve uma string,
+// não importa o formato que vier.
+function extrairMensagemErro(err) {
+  const detail = err.response?.data?.detail;
+  if (!detail) return 'Erro ao enviar os arquivos.';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map(d => `${(d.loc || []).join(' → ')}: ${d.msg}`).join(' | ');
+  }
+  return 'Erro ao enviar os arquivos.';
+}
+
 export default function UploadModulo2() {
   const [etapa, setEtapa] = useState('form'); // form | processando | resultado | erro
   const [empresas, setEmpresas] = useState([]);
@@ -69,7 +84,7 @@ export default function UploadModulo2() {
       });
       iniciarPolling(res.data.job_id);
     } catch (err) {
-      setErro(err.response?.data?.detail || 'Erro ao enviar os arquivos.');
+      setErro(extrairMensagemErro(err));
       setEtapa('erro');
     }
   };

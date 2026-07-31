@@ -32,7 +32,7 @@ except ImportError:
 REGRAS_TEXTO_GENERICAS = [
     {
         "contem": ["IOF", "DEB.IOF", "DÉB.IOF", "IMPOSTO SOBRE OPERACAO FINANCEIRA"],
-        "debito_D": "53513", "descricao": "IOF",
+        "debito_D": "53513", "descricao": "Vr.deb.n/cta.{banco} ref.iof",
     },
     {
         "contem": [
@@ -40,7 +40,7 @@ REGRAS_TEXTO_GENERICAS = [
             "MORA", "MULTA ATRASO", "JUROS EMPRESTIMO",
             "ENCARGOS FINANCEIROS", "JUROS FINANCIAMENTO",
         ],
-        "debito_D": "53501", "descricao": "Juros",
+        "debito_D": "53501", "descricao": "Vr.deb.n/cta.{banco} ref.juros",
     },
     {
         "contem": [
@@ -59,7 +59,48 @@ REGRAS_TEXTO_GENERICAS = [
             "TALAO", "TALÃO", "TED DOC TARIFA", "TARIFA PIX", "TARIFA TED",
             "TAR PROCESSAMENTO", "TARIF ADIC", "TARIFA FORNEC",
         ],
-        "debito_D": "53502", "descricao": "Vr.deb.n/cta.{banco} ref.desp Bancarias",
+        "debito_D": "53502", "descricao": "Vr.deb.n/cta.{banco} ref.desp bancarias",
+    },
+    {
+        "contem": ["RDC AUTOMÁTICO", "RDC AUTOMATICO", "RESGATE RDC"],
+        "debito_D": "11161", "credito_C": "11161",
+        "descricao_dinamica": True,
+        "apenas_bancos": ["11120"],  # só Sicoob
+    },
+    {
+        "contem": ["RENDIMENTO", "RENDIMENTOS", "REND PAGO APLIC AUT"],
+        "debito_D": "11146", "credito_C": "11146",
+        "descricao_dinamica": True,
+        "apenas_bancos": ["11045"],  # só Itaú
+    },
+    {
+        "contem": ["BB RENDE FACIL", "BB RENDE FÁCIL", "RENDE FACIL", "RENDE FÁCIL"],
+        "debito_D": "11142", "credito_C": "11142",
+        "descricao_dinamica": True,
+        "apenas_bancos": ["11041"],  # só BB
+    },
+    {
+        "contem": ["BB GIRO PRONAMPE", "PRONAMPE", "CAPITAL DE GIR", "CAPITAL DE GIRO",
+                   "CAPITAL GIRO", "CAP GIRO", "CAP. GIRO"],
+        "debito_D": "21381", "credito_C": "21381",
+        "descricao_dinamica": True,
+        "apenas_bancos": ["11041"],  # só BB
+    },
+    {
+        "contem": [
+            "DEB.CONV.ORGAOS GOV", "DÉB.CONV.ORGÃOS GOV",
+            "DAS - SIMPLES NACIONAL", "SIMPLES NACIONAL",
+            "RFB-DARF", "DAE ICMS",
+            "PAGAMENTOS PIX QR-CODE RECEITA FEDERAL",
+            "PAGAMENTOS PIX QR-CODE SEFAZ",
+            "TRIBUTO", "IMPOSTO", "DARF", "GPS", "GARE", "DAS",
+            "INSS", "FGTS", "IRRF", "ISS", "ICMS", "PIS", "COFINS",
+            "CSLL", "IRPJ", "CONTRIBUICAO", "CONTRIBUIÇÃO",
+            "RECEITA FEDERAL", "PREFEITURA", "SEFAZ", "SECRETARIA DA FAZENDA",
+            "DB.CONV.TR FD", "RFB", "ORGAOS GOV", "ÓRGÃOS GOV",
+            "CREDITO.TED-STR BAHIA", "CRÉD.TED-STR BAHIA",
+        ],
+        "debito_D": "53065", "descricao_dinamica": True,
     },
 ]
 
@@ -397,6 +438,10 @@ class MotorCruzamento:
 
     def _tentar_lista_regras_texto(self, lanc, texto, lista_regras):
         for regra in lista_regras:
+            bancos_permitidos = regra.get("apenas_bancos")
+            if bancos_permitidos and self.conta_banco not in bancos_permitidos:
+                continue
+
             if regra.get("contem_todos"):
                 bate = all(contem_termo(texto, p) for p in regra["contem_todos"])
             else:
