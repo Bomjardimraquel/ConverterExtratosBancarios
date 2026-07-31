@@ -173,11 +173,12 @@ class MotorCruzamento:
         despesas_ja_lancadas=None,
         modo_despesas: str = None,
     ) -> list:
-        # Se quem chamou já detectou o tipo do arquivo (ver
-        # carregador_despesas.py) e passou explicitamente, usa isso.
-        # Senão, cai no campo antigo da config (compatibilidade).
-        modo_despesas = modo_despesas or self.cfg.get("modo_despesas", "despesa_classificada")
-
+        # modo_despesas não decide mais um "ou outro" — serve só de
+        # compatibilidade com quem ainda passa só um dos dois. Agora o
+        # motor tenta os DOIS, na ordem: razão (já lançado no Prosoft)
+        # primeiro, despesa classificada depois — permite subir os dois
+        # arquivos juntos (razão cobre o que já foi lançado; despesa
+        # classificada cobre o que ainda falta lançar).
         despesas = list(despesas or [])
         titulos = list(titulos or [])
         notas = [n for n in (notas or []) if not n.cancelada]
@@ -196,24 +197,17 @@ class MotorCruzamento:
         resultado = []
 
         for lanc in lancamentos:
-            if modo_despesas == "razao_prosoft":
-                r = (
-                    self._ja_lancado(lanc, ja_lancadas, usadas_jal)
-                    or self._casa_titulo(lanc, titulos, usados_tit)
-                    or self._casa_regra_texto(lanc)
-                    or self._classificacao_simples(lanc)
-                )
-            else:
-                r = (
-                    self._casa_despesa(lanc, despesas_banco, usadas_desp)
-                    or self._casa_titulo(lanc, titulos, usados_tit)
-                    or self._casa_regra_texto(lanc)
-                    or self._classificacao_simples(lanc)
-                )
+            r = (
+                self._ja_lancado(lanc, ja_lancadas, usadas_jal)
+                or self._casa_despesa(lanc, despesas_banco, usadas_desp)
+                or self._casa_titulo(lanc, titulos, usados_tit)
+                or self._casa_regra_texto(lanc)
+                or self._classificacao_simples(lanc)
+            )
             resultado.append(r)
 
         self._avisos_de_sobras(resultado, despesas_banco, usadas_desp)
-        if modo_despesas == "razao_prosoft":
+        if ja_lancadas:
             self._pendencias_razao(resultado, ja_lancadas, usadas_jal)
         return resultado
 

@@ -59,7 +59,7 @@ export const listarEmpresasModulo2 = () => api.get('/modulo2/empresas');
 
 export const processarCompletoModulo2 = ({
   empresa, banco, mesAno, tipoTitulos, nomeEmpresa,
-  extrato, arquivoTitulos, arquivoDespesasOuRazao, arquivoModeloClassificado,
+  extrato, arquivoTitulos, arquivoDespesas, arquivoRazao, arquivoModeloClassificado,
 }) => {
   const form = new FormData();
   form.append('empresa', empresa);
@@ -69,7 +69,12 @@ export const processarCompletoModulo2 = ({
   form.append('nome_empresa', nomeEmpresa || '');
   form.append('extrato', extrato);
   form.append('arquivo_titulos', arquivoTitulos);
-  form.append('arquivo_despesas_ou_razao', arquivoDespesasOuRazao);
+  if (arquivoDespesas) {
+    form.append('arquivo_despesas', arquivoDespesas);
+  }
+  if (arquivoRazao) {
+    form.append('arquivo_razao', arquivoRazao);
+  }
   if (arquivoModeloClassificado) {
     form.append('arquivo_modelo_classificado', arquivoModeloClassificado);
   }

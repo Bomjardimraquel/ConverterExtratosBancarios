@@ -30,6 +30,7 @@ export default function UploadModulo2() {
   const [extrato, setExtrato] = useState(null);
   const [arquivoTitulos, setArquivoTitulos] = useState(null);
   const [arquivoDespesas, setArquivoDespesas] = useState(null);
+  const [arquivoRazao, setArquivoRazao] = useState(null);
 
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState('');
@@ -51,7 +52,9 @@ export default function UploadModulo2() {
     if (emp) setNomeEmpresa(emp.nome);
   };
 
-  const tudoPreenchido = empresaId && banco && mes && ano && extrato && arquivoTitulos && arquivoDespesas;
+  // só empresa/banco/mês/ano/extrato são realmente obrigatórios agora —
+  // sem título/despesa/razão, o lançamento cai na classificação comum
+  const tudoPreenchido = empresaId && banco && mes && ano && extrato;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,7 +65,7 @@ export default function UploadModulo2() {
       const res = await processarCompletoModulo2({
         empresa: empresaId, banco, mesAno: `${mes}/${ano}`,
         tipoTitulos, nomeEmpresa,
-        extrato, arquivoTitulos, arquivoDespesasOuRazao: arquivoDespesas,
+        extrato, arquivoTitulos, arquivoDespesas, arquivoRazao,
       });
       iniciarPolling(res.data.job_id);
     } catch (err) {
@@ -100,6 +103,7 @@ export default function UploadModulo2() {
     setExtrato(null);
     setArquivoTitulos(null);
     setArquivoDespesas(null);
+    setArquivoRazao(null);
   };
 
   if (etapa === 'processando') {
@@ -267,15 +271,19 @@ export default function UploadModulo2() {
         />
 
         <FileField
-          label="Relatório de títulos *"
+          label="Relatório de títulos"
           aceita={{ 'application/vnd.ms-excel': ['.xls'] }}
           dica=".xls"
           arquivo={arquivoTitulos}
           onArquivo={setArquivoTitulos}
         />
 
+        <div className="eyebrow" style={{ marginTop: '0.25rem' }}>
+          Despesas (opcional)
+        </div>
+
         <FileField
-          label="Despesa classificada / razão do Prosoft / movimento bruto *"
+          label="Despesa classificada / movimento bruto"
           aceita={{
             'application/vnd.ms-excel': ['.xls'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
@@ -284,6 +292,14 @@ export default function UploadModulo2() {
           dica=".xls, .xlsx ou .csv, o formato é detectado automaticamente"
           arquivo={arquivoDespesas}
           onArquivo={setArquivoDespesas}
+        />
+
+        <FileField
+          label="Razão do Prosoft"
+          aceita={{ 'application/vnd.ms-excel': ['.xls'] }}
+          dica=".xls, formato razão do Prosoft"
+          arquivo={arquivoRazao}
+          onArquivo={setArquivoRazao}
         />
 
         <button type="submit" disabled={!tudoPreenchido} className="btn-pill btn-pill-primario">

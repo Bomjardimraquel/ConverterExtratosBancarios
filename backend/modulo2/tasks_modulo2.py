@@ -24,6 +24,7 @@ load_dotenv(os.path.normpath(_CAMINHO_ENV))
 from parsers.factory import get_parser
 from modulo2.cruzamento import MotorCruzamento
 from modulo2.carregador_despesas import carregar_arquivo_despesas_ou_razao
+from modulo2.parser_razao import parse_razao_ja_lancado
 from modulo2.carregar_titulos import carregar_titulos
 from modulo2.adaptador_lancamentos import converter_lancamentos_base
 from modulo2.gerar_excel_final import gerar_excel_final
@@ -61,9 +62,10 @@ def processar_completo_job(
     banco: str,
     ano: int,
     extrato_conteudo: bytes,
-    titulos_conteudo: bytes,
-    tipo_titulos: str,
-    despesas_conteudo: bytes,
+    titulos_conteudo: bytes = None,
+    tipo_titulos: str = "receber",
+    despesas_conteudo: bytes = None,
+    razao_conteudo: bytes = None,
     nome_empresa: str = "",
     mes_ano: str = "",
     modelo_classificado_conteudo: bytes = None,
@@ -74,10 +76,22 @@ def processar_completo_job(
            com uma das chaves em cfg["bancos"] dessa empresa
     ano: ano do extrato (o parser do Módulo 1 só devolve "DD/MM", sem ano)
     tipo_titulos: "receber" ou "pagar"
+    despesas_conteudo: OPCIONAL — despesa já classificada OU movimento
+        bruto (detecção automática entre os dois). Pode vir sozinho, ou
+        junto com razao_conteudo.
+    razao_conteudo: OPCIONAL — razão do Prosoft (SpreadsheetML). Cobre o
+        que já foi lançado no Prosoft; despesas_conteudo cobre o que
+        ainda falta lançar. Pode subir os dois juntos, ou só um, ou
+        nenhum.
     modelo_classificado_conteudo: SÓ necessário quando despesas_conteudo
         for o arquivo cru de movimento contábil (com Favorecido, sem
         Débito/Crédito) — é o mês já classificado que serve de "gabarito"
-        pro aprendizado_despesas.py. Ignorado nos outros dois formatos.
+        pro aprendizado_despesas.py. Ignorado nos outros formatos.
+
+    Nenhum dos três (títulos, despesa, razão) é obrigatório — sem eles,
+    o lançamento simplesmente não tem com o que casar e cai na
+    classificação comum (regra de texto ou banco x caixa), exatamente
+    como já acontece quando um lançamento específico não acha match.
     """
     cfg = _carregar_config_empresa(empresa)
 
@@ -99,45 +113,60 @@ def processar_completo_job(
         )
     lancamentos = converter_lancamentos_base(lancamentos_base, ano=ano)
 
-    # 2. Relatório de títulos
-    titulos = carregar_titulos(titulos_conteudo, tipo=tipo_titulos)
+    # 2. Relatório de títulos (opcional) — sem ele, título nunca vai
+    #    casar, e o lançamento cai na classificação comum mais adiante
+    #    (regra de texto ou classificação simples), exatamente como
+    #    aconteceria se um título específico não tivesse match.
+    titulos = carregar_titulos(titulos_conteudo, tipo=tipo_titulos) if titulos_conteudo else []
 
-    # 3. Despesa classificada, razão do Prosoft, OU movimento bruto —
-    #    detecção automática pela estrutura do arquivo
-    modo, dados_despesa = carregar_arquivo_despesas_ou_razao(despesas_conteudo)
-
+    # 3. Razão do Prosoft (opcional) e/ou Despesa classificada/movimento
+    #    bruto (opcional) — os dois alimentam o motor juntos quando os
+    #    dois forem enviados.
     despesas_nao_classificadas = []
+    kwargs_motor = {}
 
-    if modo == "movimento_bruto":
-        # O arquivo de treino agora é OPCIONAL: se a empresa já tem
-        # regras_extras/regras_texto suficientes salvas na config (o
-        # "aprendizado" virou permanente, igual as regras do extrato),
-        # não precisa mandar um mês de referência toda vez — só manda de
-        # novo se quiser ENSINAR algo novo (fornecedor que ainda não
-        # existe nas regras).
-        if modelo_classificado_conteudo:
-            modelo = treinar_classificador_despesas(modelo_classificado_conteudo)
+    if razao_conteudo:
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
+            tmp.write(razao_conteudo)
+            caminho_tmp_razao = tmp.name
+        kwargs_motor["despesas_ja_lancadas"] = parse_razao_ja_lancado(caminho_tmp_razao)
+
+    if despesas_conteudo:
+        modo, dados_despesa = carregar_arquivo_despesas_ou_razao(despesas_conteudo)
+
+        if modo == "movimento_bruto":
+            # O arquivo de treino agora é OPCIONAL: se a empresa já tem
+            # regras_extras/regras_texto suficientes salvas na config (o
+            # "aprendizado" virou permanente, igual as regras do extrato),
+            # não precisa mandar um mês de referência toda vez — só manda
+            # de novo se quiser ENSINAR algo novo (fornecedor que ainda
+            # não existe nas regras).
+            if modelo_classificado_conteudo:
+                modelo = treinar_classificador_despesas(modelo_classificado_conteudo)
+            else:
+                modelo = {"favorecido_unico": {}, "favorecido_ambiguo": {}}
+            despesas_classificadas, despesas_nao_classificadas = carregar_despesas_brutas(
+                dados_despesa,  # bytes do arquivo cru
+                modelo,
+                regras_texto=cfg.get("regras_texto", []),
+                regras_extras=cfg.get("regras_extras", []),
+                ignorar_se_contem=cfg.get("ignorar_se_contem", []),
+            )
+            kwargs_motor["despesas"] = despesas_classificadas
+        elif modo == "despesa_classificada":
+            kwargs_motor["despesas"] = dados_despesa
         else:
-            modelo = {"favorecido_unico": {}, "favorecido_ambiguo": {}}
-        despesas_classificadas, despesas_nao_classificadas = carregar_despesas_brutas(
-            dados_despesa,  # bytes do arquivo cru
-            modelo,
-            regras_texto=cfg.get("regras_texto", []),
-            regras_extras=cfg.get("regras_extras", []),
-            ignorar_se_contem=cfg.get("ignorar_se_contem", []),
-        )
-        kwargs_motor = {"despesas": despesas_classificadas}
-        modo_motor = "despesa_classificada"  # pro motor, é a mesma coisa: lista de Despesa já com conta
-    else:
-        kwargs_motor = (
-            {"despesas": dados_despesa} if modo == "despesa_classificada"
-            else {"despesas_ja_lancadas": dados_despesa}
-        )
-        modo_motor = modo
+            # Alguém colocou um razão no campo de despesa por engano (ou
+            # de propósito) — funciona igual, só junta com o que já
+            # tiver vindo do campo de razão dedicado, em vez de substituir.
+            kwargs_motor["despesas_ja_lancadas"] = (
+                kwargs_motor.get("despesas_ja_lancadas", []) + dados_despesa
+            )
 
     # 4. Cruzamento
     motor = MotorCruzamento(cfg, conta_banco=conta_banco)
-    resultado = motor.cruzar(lancamentos, titulos=titulos, modo_despesas=modo_motor, **kwargs_motor)
+    resultado = motor.cruzar(lancamentos, titulos=titulos, **kwargs_motor)
 
     # 5. Excel final
     os.makedirs(PASTA_SAIDA, exist_ok=True)

@@ -26,23 +26,31 @@ async def processar_completo(
     tipo_titulos: str = Form("receber"),  # "receber" ou "pagar"
     nome_empresa: str = Form(""),
     extrato: UploadFile = File(...),
-    arquivo_titulos: UploadFile = File(...),
-    arquivo_despesas_ou_razao: UploadFile = File(...),
+    arquivo_titulos: UploadFile = File(None),
+    arquivo_despesas: UploadFile = File(None),
+    arquivo_razao: UploadFile = File(None),
     arquivo_modelo_classificado: UploadFile = File(None),
 ):
     """
-    Recebe extrato (PDF do banco) + relatório de títulos (.xls) +
-    arquivo de despesas — detectado automaticamente entre 3 formatos:
-      - despesa já classificada (Débito/Crédito preenchidos)
-      - razão do Prosoft (SpreadsheetML)
-      - movimento bruto (cru, com Favorecido, sem Débito/Crédito) —
-        classificado usando as regras_texto/regras_extras já salvas na
-        config da empresa (o aprendizado virou permanente, igual as
-        regras do extrato). `arquivo_modelo_classificado` é OPCIONAL
-        aqui: só precisa mandar se quiser ENSINAR fornecedor novo que
-        as regras salvas ainda não reconhecem (um mês já classificado,
-        usado como "gabarito" só pra essa rodada).
-    e enfileira o job que roda o MotorCruzamento e gera o Excel final.
+    Recebe o extrato (PDF do banco) — o único arquivo realmente
+    obrigatório — e, opcionalmente, qualquer combinação de:
+      - arquivo_titulos: relatório de títulos (.xls)
+      - arquivo_despesas: despesa já classificada (Débito/Crédito
+        preenchidos) OU movimento bruto (cru, com Favorecido, sem
+        Débito/Crédito) — detecção automática entre os dois formatos.
+        Quando for movimento bruto, usa as regras_texto/regras_extras já
+        salvas na config da empresa (o aprendizado virou permanente).
+        `arquivo_modelo_classificado` é OPCIONAL: só precisa mandar se
+        quiser ENSINAR fornecedor novo que as regras salvas ainda não
+        reconhecem (um mês já classificado, usado como "gabarito" só
+        pra essa rodada).
+      - arquivo_razao: razão do Prosoft (SpreadsheetML) — cobre o que já
+        foi lançado no Prosoft.
+    Sem título/despesa/razão, o lançamento simplesmente não acha
+    correspondência e cai na classificação comum (regra de texto ou
+    banco x caixa) — permite conciliar com o que a pessoa já tiver na
+    hora, sem exigir todos os arquivos de uma vez.
+    Enfileira o job que roda o MotorCruzamento e gera o Excel final.
     """
     if tipo_titulos not in ("receber", "pagar"):
         raise HTTPException(400, "tipo_titulos precisa ser 'receber' ou 'pagar'.")
@@ -54,16 +62,13 @@ async def processar_completo(
         raise HTTPException(400, "mes_ano precisa estar no formato MM/AAAA, ex: '04/2026'.")
 
     extrato_conteudo = await extrato.read()
-    titulos_conteudo = await arquivo_titulos.read()
-    despesas_conteudo = await arquivo_despesas_ou_razao.read()
+    titulos_conteudo = await arquivo_titulos.read() if arquivo_titulos else None
+    despesas_conteudo = await arquivo_despesas.read() if arquivo_despesas else None
+    razao_conteudo = await arquivo_razao.read() if arquivo_razao else None
     modelo_conteudo = await arquivo_modelo_classificado.read() if arquivo_modelo_classificado else None
 
     if not extrato_conteudo:
         raise HTTPException(400, "Extrato veio vazio.")
-    if not titulos_conteudo:
-        raise HTTPException(400, "Arquivo de títulos veio vazio.")
-    if not despesas_conteudo:
-        raise HTTPException(400, "Arquivo de despesa/razão veio vazio.")
 
     # Passa o caminho da função como STRING explícita ("modulo2.tasks_modulo2.
     # processar_completo_job"), em vez de passar o objeto função direto.
@@ -76,7 +81,8 @@ async def processar_completo(
     job = fila_processamento.enqueue(
         "modulo2.tasks_modulo2.processar_completo_job",
         empresa, banco, ano,
-        extrato_conteudo, titulos_conteudo, tipo_titulos, despesas_conteudo,
+        extrato_conteudo, titulos_conteudo, tipo_titulos,
+        despesas_conteudo, razao_conteudo,
         nome_empresa, mes_ano, modelo_conteudo,
         job_timeout="15m",
         result_ttl=3600,  # 1h pra consultar o resultado, em vez dos 500s padrão
