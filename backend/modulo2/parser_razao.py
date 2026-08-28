@@ -57,6 +57,11 @@ def agrupar_duplicatas_com_juros(lista: list) -> list:
         itens_ordenados = sorted(itens, key=lambda x: x.data)
         valor_total = sum(x.valor for x in itens)
         principal = min(itens, key=lambda x: len(x.historico))
+        # junta os números de lançamento de todas as linhas agrupadas
+        # (separados por "/"), pra não perder rastreabilidade de nenhuma
+        numeros_lancamento = " / ".join(
+            i.lancamento for i in itens_ordenados if i.lancamento
+        )
         resultado.append(DespesaJaLancada(
             data=itens_ordenados[0].data,
             valor=valor_total,
@@ -64,6 +69,7 @@ def agrupar_duplicatas_com_juros(lista: list) -> list:
             historico=principal.historico + f" (+{len(itens) - 1} linha(s) de juros/multa agrupada(s))",
             conta_parceira=principal.conta_parceira,
             terceiro=principal.terceiro,
+            lancamento=numeros_lancamento,
         ))
     return resultado
 
@@ -80,8 +86,8 @@ def parse_razao_ja_lancado(caminho: str) -> list:
         vals = [_cell_text(c) for c in row.findall("ss:Cell", _NS)]
         if len(vals) < 9:
             continue
-        docto, data_str, c_part, terc, cc, historico, debito, credito = (
-            vals[1], vals[2], vals[3], vals[4], vals[5], vals[6], vals[7], vals[8]
+        lcto, docto, data_str, c_part, terc, cc, historico, debito, credito = (
+            vals[0], vals[1], vals[2], vals[3], vals[4], vals[5], vals[6], vals[7], vals[8]
         )
         if not data_str or "/" not in data_str:
             continue
@@ -99,6 +105,6 @@ def parse_razao_ja_lancado(caminho: str) -> list:
         resultado.append(DespesaJaLancada(
             data=data, valor=valor, tipo=tipo,
             historico=historico.strip(), conta_parceira=c_part.strip(),
-            terceiro=terc.strip(),
+            terceiro=terc.strip(), lancamento=lcto.strip(),
         ))
     return agrupar_duplicatas_com_juros(resultado)

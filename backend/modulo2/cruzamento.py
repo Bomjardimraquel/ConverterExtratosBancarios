@@ -285,6 +285,7 @@ class MotorCruzamento:
                 valor=lanc.valor, tipo=lanc.tipo,
                 origem="ja_lancado", confianca="alta", casada=True,
                 referencia=j.historico[:40],
+                numero_lancamento=j.lancamento,
             )
         return None
 
@@ -302,6 +303,7 @@ class MotorCruzamento:
                     "confirmar se foi realmente debitado no banco ou se é erro de digitação/duplicidade"
                 ),
                 referencia=j.historico[:40],
+                numero_lancamento=j.lancamento,
             ))
 
     def _casa_despesa(self, lanc, despesas, usadas):

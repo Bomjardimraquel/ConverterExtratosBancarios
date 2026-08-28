@@ -79,6 +79,7 @@ class DespesaJaLancada:
     historico: str
     conta_parceira: str = ""
     terceiro: str = ""
+    lancamento: str = ""  # número do lançamento (LCTO) no razão do Prosoft
 
 
 @dataclass
@@ -96,3 +97,4 @@ class LancamentoClassificado:
     casada: bool = False
     aviso: str = ""
     referencia: str = ""
+    numero_lancamento: str = ""  # número do lançamento (LCTO) no razão do Prosoft, quando aplicável

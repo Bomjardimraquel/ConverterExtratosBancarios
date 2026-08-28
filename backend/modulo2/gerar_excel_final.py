@@ -128,23 +128,25 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
     # ── aba Pendências (só se existir alguma) ───────────────────────────
     if pendencias:
         wsp = wb.create_sheet("Pendências")
-        p_headers = ["Data", "Valor (R$)", "Tipo", "Descrição", "Aviso"]
+        p_headers = ["Data", "Nº Lançamento", "Valor (R$)", "Tipo", "Descrição", "Aviso"]
         _cabecalho(wsp, "Itens sem correspondência (conferir manualmente)", p_headers, len(p_headers))
         for i, r in enumerate(pendencias, 3):
             fill = PatternFill("solid", fgColor=COR_REVISAO)
-            vals = [r.data.strftime("%d/%m/%Y"), r.valor, "Crédito" if r.tipo == "C" else "Débito",
+            vals = [r.data.strftime("%d/%m/%Y"), r.numero_lancamento, r.valor,
+                    "Crédito" if r.tipo == "C" else "Débito",
                     _remover_travessoes(r.descricao), _remover_travessoes(r.aviso)]
             for col, val in enumerate(vals, 1):
                 cell = wsp.cell(row=i, column=col, value=val)
                 cell.fill = fill
-                if col == 2:
+                if col == 3:
                     cell.number_format = "#,##0.00"
         wsp.column_dimensions['A'].width = 12
-        wsp.column_dimensions['B'].width = 14
-        wsp.column_dimensions['C'].width = 10
-        wsp.column_dimensions['D'].width = 45
-        wsp.column_dimensions['E'].width = 60
-        wsp.auto_filter.ref = f"A2:E{2 + len(pendencias)}"
+        wsp.column_dimensions['B'].width = 16
+        wsp.column_dimensions['C'].width = 14
+        wsp.column_dimensions['D'].width = 10
+        wsp.column_dimensions['E'].width = 45
+        wsp.column_dimensions['F'].width = 60
+        wsp.auto_filter.ref = f"A2:F{2 + len(pendencias)}"
 
     # ── aba Conciliados (só se existir algum "já lançado") ─────────────
     # Mostra os itens do razão/despesa que JÁ CASARAM com o extrato — não
@@ -154,24 +156,26 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
     ja_lancados = motor.resultado_ja_lancados(resultado)
     if ja_lancados:
         wsc = wb.create_sheet("Conciliados")
-        c_headers = ["Data", "Valor (R$)", "Tipo", "Descrição", "Casou com (extrato)"]
+        c_headers = ["Data", "Nº Lançamento", "Valor (R$)", "Tipo", "Descrição", "Casou com (extrato)"]
         _cabecalho(wsc, "Já conciliados com o extrato (conferência)", c_headers, len(c_headers))
         for i, r in enumerate(ja_lancados, 3):
             fill = PatternFill("solid", fgColor=COR_CASADO)
-            vals = [r.data.strftime("%d/%m/%Y"), r.valor, "Crédito" if r.tipo == "C" else "Débito",
+            vals = [r.data.strftime("%d/%m/%Y"), r.numero_lancamento, r.valor,
+                    "Crédito" if r.tipo == "C" else "Débito",
                     _remover_travessoes(r.descricao), _remover_travessoes(r.referencia or "")]
             for col, val in enumerate(vals, 1):
                 cell = wsc.cell(row=i, column=col, value=val)
                 cell.fill = fill
                 cell.border = BORDA
-                if col == 2:
+                if col == 3:
                     cell.number_format = "#,##0.00"
         wsc.column_dimensions['A'].width = 12
-        wsc.column_dimensions['B'].width = 14
-        wsc.column_dimensions['C'].width = 10
-        wsc.column_dimensions['D'].width = 55
-        wsc.column_dimensions['E'].width = 45
-        wsc.auto_filter.ref = f"A2:E{2 + len(ja_lancados)}"
+        wsc.column_dimensions['B'].width = 16
+        wsc.column_dimensions['C'].width = 14
+        wsc.column_dimensions['D'].width = 10
+        wsc.column_dimensions['E'].width = 55
+        wsc.column_dimensions['F'].width = 45
+        wsc.auto_filter.ref = f"A2:F{2 + len(ja_lancados)}"
 
     # ── aba Legenda ──────────────────────────────────────────────────────
     ws2 = wb.create_sheet("Legenda")
