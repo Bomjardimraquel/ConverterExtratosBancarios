@@ -12,3 +12,9 @@ pikepdf
 pytesseract
 pdf2image
 pillow
+rq
+redis
+sqlmodel
+psycopg2-binary
+alembic
+python-dotenv
