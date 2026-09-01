@@ -73,14 +73,23 @@ def criar_refresh_token(dados: dict) -> str:
 
 
 def usuario_atual(request: Request):
-    """Lê o access token do cookie HTTP-only."""
+    """Lê o access token do cabeçalho Authorization: Bearer <token>.
+
+    Antes lia de cookie — trocado porque frontend e backend ficam em
+    domínios DIFERENTES no Railway, e cookie entre domínios diferentes
+    é bloqueado por proteções de privacidade cada vez mais comuns nos
+    navegadores (confirmado testando: o cookie nunca chegava de volta,
+    mesmo com sameSite="none" configurado certo). Cabeçalho Authorization
+    não depende de cookie nenhum, funciona igual em qualquer navegador.
+    """
     erro = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não autorizado",
     )
-    token = request.cookies.get("access_token")
-    if not token:
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
         raise erro
+    token = auth_header[len("Bearer "):]
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "access":

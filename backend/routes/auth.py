@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, status, Response, Request
+from fastapi import APIRouter, HTTPException, status, Request
 from pydantic import BaseModel
 from utils.auth import (
     autenticar_usuario, criar_access_token, criar_refresh_token,
-    validar_refresh_token, REFRESH_TOKEN_EXPIRE_DAYS, PRODUCAO
+    validar_refresh_token
 )
 from utils.fila import conexao_redis
 
@@ -38,36 +38,19 @@ class LoginRequest(BaseModel):
     senha: str
 
 
-def _set_cookies(response: Response, username: str, nome: str):
-    """Define os cookies HTTP-only de access e refresh token."""
-    access = criar_access_token({"username": username, "nome": nome})
-    refresh = criar_refresh_token({"username": username, "nome": nome})
-
-    samesite_valor = "none" if PRODUCAO else "lax"
-
-    # Access token — 15 minutos
-    response.set_cookie(
-        key="access_token",
-        value=access,
-        httponly=True,
-        secure=PRODUCAO,
-        samesite=samesite_valor,
-        max_age=15 * 60,
-    )
-    # Refresh token — 7 dias
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh,
-        httponly=True,
-        secure=PRODUCAO,
-        samesite=samesite_valor,
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-    )
-    return nome
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str = None
+
+
+# Token agora vai no CORPO da resposta (não mais em cookie) — o frontend
+# guarda em localStorage e manda em todo pedido seguinte pelo cabeçalho
+# "Authorization: Bearer <token>". Ver utils/auth.py pro motivo da troca.
 @router.post("/login")
-def login(dados: LoginRequest, response: Response):
+def login(dados: LoginRequest):
     _checar_rate_limit(dados.username)
 
     usuario = autenticar_usuario(dados.username, dados.senha)
@@ -78,29 +61,32 @@ def login(dados: LoginRequest, response: Response):
             detail="Usuário ou senha incorretos",
         )
     _limpar_tentativas(dados.username)
-    _set_cookies(response, usuario["username"], usuario["nome"])
-    return {"nome": usuario["nome"], "username": usuario["username"]}
+
+    access = criar_access_token({"username": usuario["username"], "nome": usuario["nome"]})
+    refresh = criar_refresh_token({"username": usuario["username"], "nome": usuario["nome"]})
+    return {
+        "nome": usuario["nome"],
+        "username": usuario["username"],
+        "access_token": access,
+        "refresh_token": refresh,
+    }
 
 
 @router.post("/refresh")
-def refresh(request: Request, response: Response):
-    """Gera novo access token usando o refresh token."""
-    token = request.cookies.get("refresh_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Refresh token não encontrado")
-    payload = validar_refresh_token(token)
-    _set_cookies(response, payload["username"], payload["nome"])
-    return {"ok": True}
+def refresh(dados: RefreshRequest):
+    """Gera novo access token (e novo refresh token) usando o refresh
+    token que o frontend manda explicitamente no corpo do pedido."""
+    payload = validar_refresh_token(dados.refresh_token)
+    access = criar_access_token({"username": payload["username"], "nome": payload["nome"]})
+    novo_refresh = criar_refresh_token({"username": payload["username"], "nome": payload["nome"]})
+    return {"access_token": access, "refresh_token": novo_refresh}
 
 
 @router.post("/logout")
-def logout(request: Request, response: Response):
+def logout(dados: LogoutRequest):
     from utils.auth import revogar_refresh_token
-    token = request.cookies.get("refresh_token")
-    if token:
-        revogar_refresh_token(token)
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
+    if dados.refresh_token:
+        revogar_refresh_token(dados.refresh_token)
     return {"ok": True}
 
 

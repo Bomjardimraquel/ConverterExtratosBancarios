@@ -3,28 +3,90 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 export { API_BASE_URL };
 
+const CHAVE_ACCESS = 'ec_access_token';
+const CHAVE_REFRESH = 'ec_refresh_token';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
+function salvarTokens(accessToken, refreshToken) {
+  localStorage.setItem(CHAVE_ACCESS, accessToken);
+  localStorage.setItem(CHAVE_REFRESH, refreshToken);
+}
+
+function limparTokens() {
+  localStorage.removeItem(CHAVE_ACCESS);
+  localStorage.removeItem(CHAVE_REFRESH);
+  localStorage.removeItem('ec_nome');
+}
+
+function getAccessToken() {
+  return localStorage.getItem(CHAVE_ACCESS);
+}
+
+function getRefreshToken() {
+  return localStorage.getItem(CHAVE_REFRESH);
+}
+
+const api = axios.create({ baseURL: API_BASE_URL });
+
+// Manda o access token em TODO pedido, automaticamente.
+api.interceptors.request.use(config => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
+// Se um pedido voltar 401 (access token vencido), tenta renovar
+// automaticamente com o refresh token, e repete o pedido original.
 api.interceptors.response.use(
   r => r,
   async err => {
     const original = err.config;
     if (err.response?.status === 401 && !original._retry) {
       original._retry = true;
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        limparTokens();
+        window.location.href = '/login';
+        return Promise.reject(err);
+      }
       try {
-        await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: refreshToken,
+        });
+        salvarTokens(data.access_token, data.refresh_token);
         return api(original);
       } catch {
+        limparTokens();
         window.location.href = '/login';
       }
     }
     return Promise.reject(err);
   }
 );
+
+// ── Funções de autenticação ────────────────────────────────────────────
+
+export const login = async (username, senha) => {
+  const { data } = await axios.post(`${API_BASE_URL}/auth/login`, { username, senha });
+  salvarTokens(data.access_token, data.refresh_token);
+  localStorage.setItem('ec_nome', data.nome);
+  return data;
+};
+
+export const logout = async () => {
+  const refreshToken = getRefreshToken();
+  try {
+    await axios.post(`${API_BASE_URL}/auth/logout`, { refresh_token: refreshToken });
+  } catch {
+    // mesmo se der erro no servidor, limpa localmente de qualquer jeito
+  }
+  limparTokens();
+};
+
+export const getMe = () => api.get('/auth/me');
+
+export const estaLogado = () => !!getAccessToken();
 
 export const processarExtrato = (arquivo, banco, nomeEmpresa, mesAno) => {
   const form = new FormData();

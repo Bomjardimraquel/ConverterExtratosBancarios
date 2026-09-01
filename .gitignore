@@ -32,3 +32,5 @@ Downloads/
 # Logs
 *.log
 uvicorn.log
+
+conciliador_backup.sql

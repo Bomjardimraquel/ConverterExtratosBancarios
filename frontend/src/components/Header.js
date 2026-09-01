@@ -1,11 +1,10 @@
 import React from 'react';
-import { API_BASE_URL } from '../utils/api';
+import { logout as logoutApi } from '../utils/api';
 
 export default function Header() {
   const nome = localStorage.getItem('ec_nome') || '';
   const handleLogout = async () => {
-    await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-    localStorage.removeItem('ec_nome');
+    await logoutApi();
     window.location.href = '/login';
   };
   return (

@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar';
 import UploadStep from './components/UploadStep';
 import UploadModulo2 from './components/UploadModulo2';
 import Login from './components/Login';
-import { processarExtrato, consultarStatusJob, exportarExcel, API_BASE_URL } from './utils/api';
+import { processarExtrato, consultarStatusJob, exportarExcel, getMe, estaLogado } from './utils/api';
 
 const INTERVALO_POLLING_MS = 2000;
 
@@ -157,8 +157,9 @@ function AppContent() {
 function RotaProtegida() {
   const [auth, setAuth] = React.useState(null);
   React.useEffect(() => {
-    fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
-      .then(r => setAuth(r.ok))
+    if (!estaLogado()) { setAuth(false); return; }
+    getMe()
+      .then(() => setAuth(true))
       .catch(() => setAuth(false));
   }, []);
   if (auth === null) return null;

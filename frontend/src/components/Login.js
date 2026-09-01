@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../utils/api';
+import { login, estaLogado } from '../utils/api';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -10,8 +10,7 @@ export default function Login() {
   const [showSenha, setShowSenha] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('ec_token');
-    if (token) window.location.href = '/app';
+    if (estaLogado()) window.location.href = '/app';
   }, []);
 
   const fazerLogin = async (e) => {
@@ -20,17 +19,10 @@ export default function Login() {
     setLoading(true);
     setErro('');
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, senha }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setErro(data.detail || 'Usuário ou senha incorretos'); return; }
-      localStorage.setItem('ec_nome', data.nome);
+      await login(username, senha);
       window.location.href = '/app';
-    } catch {
-      setErro('Erro ao conectar com o servidor');
+    } catch (err) {
+      setErro(err.response?.data?.detail || 'Erro ao conectar com o servidor');
     } finally {
       setLoading(false);
     }
