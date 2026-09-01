@@ -1,111 +1,125 @@
-from fastapi import APIRouter, HTTPException, status, Response, Request
-from pydantic import BaseModel
-from utils.auth import (
-    autenticar_usuario, criar_access_token, criar_refresh_token,
-    validar_refresh_token, REFRESH_TOKEN_EXPIRE_DAYS, PRODUCAO
-)
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import HTTPException, status, Depends, Request
+from fastapi.security import OAuth2PasswordBearer
 from utils.fila import conexao_redis
+import os
 
-router = APIRouter()
+PRODUCAO = os.getenv("AMBIENTE") == "producao"
 
-MAX_TENTATIVAS = 5
-JANELA_BLOQUEIO_SEGUNDOS = 15 * 60  # 15 minutos
+# Segredos e senhas agora vêm de variável de ambiente — não ficam mais
+# escritos direto no código. Isso é o que permite esse arquivo continuar
+# gitignored (nunca vai pro GitHub) e MESMO ASSIM funcionar no Railway:
+# lá, os valores são configurados nas "Variables" do serviço, não em
+# arquivo nenhum. Localmente, os mesmos nomes vão no .env de sempre.
+SECRET_KEY = os.getenv("SECRET_KEY")
+REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-
-def _checar_rate_limit(username: str):
-    chave = f"login_tentativas:{username.lower()}"
-    tentativas = conexao_redis.get(chave)
-    if tentativas and int(tentativas) >= MAX_TENTATIVAS:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Muitas tentativas de login. Tente novamente em alguns minutos.",
-        )
-
-
-def _registrar_tentativa_falha(username: str):
-    chave = f"login_tentativas:{username.lower()}"
-    tentativas = conexao_redis.incr(chave)
-    if tentativas == 1:
-        conexao_redis.expire(chave, JANELA_BLOQUEIO_SEGUNDOS)
-
-
-def _limpar_tentativas(username: str):
-    conexao_redis.delete(f"login_tentativas:{username.lower()}")
-
-
-class LoginRequest(BaseModel):
-    username: str
-    senha: str
-
-
-def _set_cookies(response: Response, username: str, nome: str):
-    """Define os cookies HTTP-only de access e refresh token."""
-    access = criar_access_token({"username": username, "nome": nome})
-    refresh = criar_refresh_token({"username": username, "nome": nome})
-
-    samesite_valor = "none" if PRODUCAO else "lax"
-
-    # Access token — 15 minutos
-    response.set_cookie(
-        key="access_token",
-        value=access,
-        httponly=True,
-        secure=PRODUCAO,
-        samesite=samesite_valor,
-        max_age=15 * 60,
+if not SECRET_KEY or not REFRESH_SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY e REFRESH_SECRET_KEY precisam estar definidos como "
+        "variável de ambiente (no .env local, ou nas Variables do Railway)."
     )
-    # Refresh token — 7 dias
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh,
-        httponly=True,
-        secure=PRODUCAO,
-        samesite=samesite_valor,
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Usuário "admin" removido de propósito — só os usuários reais do
+# escritório. Pra trocar a senha de alguém, gera um novo hash (veja
+# instruções) e troca só a variável de ambiente correspondente, sem
+# precisar mexer em código nenhum.
+USUARIOS = {
+    "raquel": {
+        "nome": "Raquel",
+        "senha_hash": os.getenv("RAQUEL_SENHA_HASH"),
+        "ativo": True,
+    },
+    "areudo": {
+        "nome": "Areudo",
+        "senha_hash": os.getenv("AREUDO_SENHA_HASH"),
+        "ativo": True,
+    },
+}
+
+
+def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
+    return pwd_context.verify(senha_plana, senha_hash)
+
+
+def autenticar_usuario(username: str, senha: str):
+    usuario = USUARIOS.get(username.lower())
+    if not usuario or not usuario["ativo"] or not usuario["senha_hash"]:
+        return None
+    if not verificar_senha(senha, usuario["senha_hash"]):
+        return None
+    return {"username": username, "nome": usuario["nome"]}
+
+
+def criar_access_token(dados: dict) -> str:
+    payload = dados.copy()
+    payload["exp"] = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload["type"] = "access"
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def criar_refresh_token(dados: dict) -> str:
+    payload = dados.copy()
+    payload["exp"] = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    payload["type"] = "refresh"
+    return jwt.encode(payload, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
+
+def usuario_atual(request: Request):
+    """Lê o access token do cookie HTTP-only."""
+    erro = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Não autorizado",
     )
-    return nome
-
-
-@router.post("/login")
-def login(dados: LoginRequest, response: Response):
-    _checar_rate_limit(dados.username)
-
-    usuario = autenticar_usuario(dados.username, dados.senha)
-    if not usuario:
-        _registrar_tentativa_falha(dados.username)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário ou senha incorretos",
-        )
-    _limpar_tentativas(dados.username)
-    _set_cookies(response, usuario["username"], usuario["nome"])
-    return {"nome": usuario["nome"], "username": usuario["username"]}
-
-
-@router.post("/refresh")
-def refresh(request: Request, response: Response):
-    """Gera novo access token usando o refresh token."""
-    token = request.cookies.get("refresh_token")
+    token = request.cookies.get("access_token")
     if not token:
-        raise HTTPException(status_code=401, detail="Refresh token não encontrado")
-    payload = validar_refresh_token(token)
-    _set_cookies(response, payload["username"], payload["nome"])
-    return {"ok": True}
+        raise erro
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "access":
+            raise erro
+        username = payload.get("username")
+        if not username:
+            raise erro
+        return payload
+    except JWTError:
+        raise erro
 
 
-@router.post("/logout")
-def logout(request: Request, response: Response):
-    from utils.auth import revogar_refresh_token
-    token = request.cookies.get("refresh_token")
-    if token:
-        revogar_refresh_token(token)
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
-    return {"ok": True}
+def validar_refresh_token(token: str) -> dict:
+    erro = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Refresh token inválido ou expirado",
+    )
+    if esta_revogado(token):
+        raise erro
+    try:
+        payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise erro
+        return payload
+    except JWTError:
+        raise erro
 
 
-@router.get("/me")
-def me(request: Request):
-    from utils.auth import usuario_atual
-    usuario = usuario_atual(request)
-    return {"username": usuario["username"], "nome": usuario["nome"]}
+def revogar_refresh_token(token: str):
+    """Guarda o refresh token numa lista negra até ele expirar sozinho."""
+    try:
+        payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        if exp:
+            segundos_restantes = max(int(exp - datetime.utcnow().timestamp()), 1)
+            conexao_redis.setex(f"revogado:{token}", segundos_restantes, "1")
+    except JWTError:
+        pass  # token já inválido, não precisa revogar
+
+
+def esta_revogado(token: str) -> bool:
+    return conexao_redis.exists(f"revogado:{token}") == 1
