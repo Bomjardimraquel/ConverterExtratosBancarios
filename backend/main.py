@@ -1,6 +1,15 @@
+from dotenv import load_dotenv
+import os
+
+# Carrega backend/.env ANTES de qualquer outro import — sem isso, módulos
+# como utils/auth.py (que lêem variável de ambiente assim que são
+# importados) rodavam antes do .env ter sido lido em algum lugar,
+# mesmo as variáveis existindo de verdade no arquivo.
+_CAMINHO_ENV = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(_CAMINHO_ENV)
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-import os
 from routes.extrato import router as extrato_router
 from routes.auth import router as auth_router
 from utils.auth import usuario_atual
