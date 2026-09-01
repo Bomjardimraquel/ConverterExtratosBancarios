@@ -43,13 +43,15 @@ def _set_cookies(response: Response, username: str, nome: str):
     access = criar_access_token({"username": username, "nome": nome})
     refresh = criar_refresh_token({"username": username, "nome": nome})
 
+    samesite_valor = "none" if PRODUCAO else "lax"
+
     # Access token — 15 minutos
     response.set_cookie(
         key="access_token",
         value=access,
         httponly=True,
-        secure=PRODUCAO,   # True automaticamente quando AMBIENTE=producao no .env
-        samesite="lax",
+        secure=PRODUCAO,
+        samesite=samesite_valor,
         max_age=15 * 60,
     )
     # Refresh token — 7 dias
@@ -57,8 +59,8 @@ def _set_cookies(response: Response, username: str, nome: str):
         key="refresh_token",
         value=refresh,
         httponly=True,
-        secure=PRODUCAO,   # True automaticamente quando AMBIENTE=producao no .env
-        samesite="lax",
+        secure=PRODUCAO,
+        samesite=samesite_valor,
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
     )
     return nome
