@@ -5,14 +5,10 @@ import Sidebar from './components/Sidebar';
 import UploadStep from './components/UploadStep';
 import UploadModulo2 from './components/UploadModulo2';
 import Login from './components/Login';
-import { processarExtrato, consultarStatusJob, exportarExcel } from './utils/api';
+import { processarExtrato, consultarStatusJob, exportarExcel, API_BASE_URL } from './utils/api';
 
 const INTERVALO_POLLING_MS = 2000;
 
-// FastAPI, quando recusa por validação (422), manda o "detail" como uma
-// LISTA DE OBJETOS ({type, loc, msg, ...}), não texto simples — se
-// tentar mostrar isso direto na tela, o React quebra ("Objects are not
-// valid as a React child"). Essa função sempre devolve uma string.
 function extrairMensagemErro(err, padrao) {
   const detail = err.response?.data?.detail;
   if (!detail) return padrao;
@@ -161,7 +157,7 @@ function AppContent() {
 function RotaProtegida() {
   const [auth, setAuth] = React.useState(null);
   React.useEffect(() => {
-    fetch('/api/auth/me', { credentials: "include" })
+    fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
       .then(r => setAuth(r.ok))
       .catch(() => setAuth(false));
   }, []);
