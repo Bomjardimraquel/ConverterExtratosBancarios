@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+export { API_BASE_URL };
+
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
@@ -12,7 +16,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
         return api(original);
       } catch {
         window.location.href = '/login';
