@@ -1,4 +1,5 @@
 import React from 'react';
+import { API_BASE_URL } from '../utils/api';
 
 const ITENS = [
   { key: '1', label: 'Extrato simples' },
@@ -10,7 +11,7 @@ export default function Sidebar({ modulo, onTrocarModulo }) {
   const iniciais = nome ? nome.trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase() : '?';
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
     localStorage.removeItem('ec_nome');
     window.location.href = '/login';
   };
