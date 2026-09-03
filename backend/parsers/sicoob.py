@@ -95,7 +95,16 @@ class ParserSicoob(ParserBase):
         if not texto_total.strip():
             texto_total = _extrair_texto_ocr(conteudo)
 
-        if "R$" in texto_total:
+        # MODELO 3 (SISBR "Data Documento Histórico Valor", ex: extrato
+        # Farma Sul): mesma estrutura de colunas do modelo 2 (documento
+        # solto + histórico + valor+indicador na mesma linha, detalhe nas
+        # linhas seguintes), a diferença real é só a DATA vir com o ano
+        # junto ("DD/MM/AAAA" em vez de "DD/MM") e o valor não ter o
+        # prefixo "R$". Por isso cai no mesmo parser do modelo 2 — ver
+        # ajustes de regex de data lá dentro pra aceitar ano opcional.
+        tem_data_com_ano = bool(re.search(r"^\d{2}/\d{2}/\d{4}\s+\S", texto_total, re.MULTILINE))
+
+        if "R$" in texto_total or tem_data_com_ano:
             return self._parse_modelo2(texto_total)
         else:
             return self._parse_modelo1(texto_total)
@@ -289,7 +298,7 @@ class ParserSicoob(ParserBase):
             if self.IGNORAR_RE.search(linha):
                 continue
 
-            m = re.match(r"^(\d{2}/\d{2})\s+", linha)
+            m = re.match(r"^(\d{2}/\d{2})(?:/\d{4})?\s+", linha)
             if not m:
                 continue
 
@@ -338,7 +347,7 @@ class ParserSicoob(ParserBase):
                 if not prox:
                     i += 1
                     continue
-                if re.match(r"^\d{2}/\d{2}\s", prox) or self.IGNORAR_RE.search(prox):
+                if re.match(r"^\d{2}/\d{2}(?:/\d{4})?\s", prox) or self.IGNORAR_RE.search(prox):
                     break
                 if self.VALOR_CD_RE.search(prox):
                     break
