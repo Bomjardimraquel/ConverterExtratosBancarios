@@ -1,10 +1,7 @@
-import os
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
 from rq.job import Job
 from rq.exceptions import NoSuchJobError
 
-from modulo2.tasks_modulo2 import PASTA_SAIDA
 from modulo2.db.carregar_config import listar_empresas
 from utils.fila import conexao_redis, fila_processamento
 
@@ -107,16 +104,33 @@ def consultar_status_completo(job_id: str):
     return {"status": "processando"}
 
 
-@router.get("/download/{nome_arquivo}")
-def baixar_excel(nome_arquivo: str):
-    # os.path.basename tira qualquer "../" que venha no nome — evita
-    # alguém pedir um arquivo fora da pasta de saída pela URL.
-    nome_seguro = os.path.basename(nome_arquivo)
-    caminho = os.path.join(PASTA_SAIDA, nome_seguro)
-    if not os.path.isfile(caminho):
+@router.get("/download/{job_id}")
+def baixar_excel(job_id: str):
+    """
+    Lê o arquivo do RESULTADO DO JOB (Redis), não mais do disco local —
+    worker e backend rodam em serviços separados no Railway, cada um com
+    disco próprio, então salvar só o caminho não bastava (o backend nunca
+    via o arquivo que o worker tinha gerado no disco DELE).
+    """
+    import base64
+    from fastapi import Response
+
+    try:
+        job = Job.fetch(job_id, connection=conexao_redis)
+    except NoSuchJobError:
+        raise HTTPException(404, "Job não encontrado (talvez o resultado já tenha expirado).")
+
+    if not job.is_finished or not job.result:
         raise HTTPException(404, "Arquivo não encontrado (talvez ainda esteja processando).")
-    return FileResponse(
-        caminho,
+
+    arquivo_base64 = job.result.get("arquivo_base64")
+    nome_arquivo = job.result.get("arquivo", "resultado.xlsx")
+    if not arquivo_base64:
+        raise HTTPException(404, "Arquivo não encontrado no resultado do processamento.")
+
+    conteudo = base64.b64decode(arquivo_base64)
+    return Response(
+        content=conteudo,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=nome_seguro,
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
     )

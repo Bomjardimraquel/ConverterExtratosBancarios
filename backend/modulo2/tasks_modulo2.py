@@ -175,6 +175,16 @@ def processar_completo_job(
     titulo_planilha = f"{nome_empresa or cfg.get('nome', empresa)} - {mes_ano}"
     stats = gerar_excel_final(motor, resultado, titulo_planilha, caminho_arquivo)
 
+    # O worker e o backend rodam em serviços SEPARADOS no Railway (cada um
+    # com seu próprio disco, não compartilhado) — salvar só o caminho não
+    # basta, porque quem atende o download é o backend, que nunca vê esse
+    # arquivo no disco dele. Solução: manda o conteúdo do arquivo junto no
+    # resultado do job (guardado no Redis, que os dois serviços
+    # compartilham), em base64. O download lê daqui, não mais do disco.
+    import base64
+    with open(caminho_arquivo, "rb") as f:
+        arquivo_base64 = base64.b64encode(f.read()).decode("ascii")
+
     casados = sum(1 for r in resultado if r.casada)
     valor_total = sum(r.valor for r in resultado)
     valor_casado = sum(r.valor for r in resultado if r.casada)
@@ -191,4 +201,5 @@ def processar_completo_job(
         "despesas_brutas_nao_classificadas": len(despesas_nao_classificadas),
         "despesas_brutas_nao_classificadas_detalhe": despesas_nao_classificadas,
         "arquivo": nome_arquivo,
+        "arquivo_base64": arquivo_base64,
     }

@@ -153,8 +153,8 @@ export const processarCompletoModulo2 = ({
 
 export const consultarStatusModulo2 = (jobId) => api.get(`/modulo2/status_completo/${jobId}`);
 
-export const baixarExcelModulo2 = async (nomeArquivo) => {
-  const res = await api.get(`/modulo2/download/${nomeArquivo}`, { responseType: 'blob' });
+export const baixarExcelModulo2 = async (jobId, nomeArquivo) => {
+  const res = await api.get(`/modulo2/download/${jobId}`, { responseType: 'blob' });
   const url = window.URL.createObjectURL(new Blob([res.data]));
   const link = document.createElement('a');
   link.href = url;

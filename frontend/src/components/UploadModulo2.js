@@ -48,6 +48,7 @@ export default function UploadModulo2() {
   const [arquivoRazao, setArquivoRazao] = useState(null);
 
   const [resultado, setResultado] = useState(null);
+  const [jobId, setJobId] = useState(null);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
@@ -83,6 +84,7 @@ export default function UploadModulo2() {
         extrato, arquivoTitulos, arquivoDespesas, arquivoRazao,
       });
       iniciarPolling(res.data.job_id);
+      setJobId(res.data.job_id);
     } catch (err) {
       setErro(extrairMensagemErro(err));
       setEtapa('erro');
@@ -111,9 +113,22 @@ export default function UploadModulo2() {
     }, INTERVALO_POLLING_MS);
   };
 
+  const handleBaixar = async () => {
+    try {
+      await baixarExcelModulo2(jobId, resultado.arquivo);
+    } catch (err) {
+      toast.error(
+        err.response?.status === 401
+          ? 'Sessão expirada, faça login de novo.'
+          : 'Erro ao baixar o Excel. Tenta de novo.'
+      );
+    }
+  };
+
   const handleNovoProcessamento = () => {
     setEtapa('form');
     setResultado(null);
+    setJobId(null);
     setErro('');
     setExtrato(null);
     setArquivoTitulos(null);
@@ -189,7 +204,7 @@ export default function UploadModulo2() {
             </div>
           )}
 
-          <button onClick={() => baixarExcelModulo2(resultado.arquivo)} className="btn-pill btn-pill-primario">
+          <button onClick={handleBaixar} className="btn-pill btn-pill-primario">
             Baixar Excel
           </button>
           <button onClick={handleNovoProcessamento} className="btn-pill btn-pill-secundario">
