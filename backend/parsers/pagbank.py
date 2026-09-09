@@ -8,7 +8,9 @@ from typing import List
 class ParserPagBank(ParserBase):
     """
     PagBank (PagSeguro) — formato simples, tudo na mesma linha:
-      "DD/MM/AAAA Descrição R$ 1.234,56"
+      "DD/MM/AAAA Descrição R$ 1.234,56"      (crédito)
+      "DD/MM/AAAA Descrição -R$ 1.234,56"     (débito — sinal colado
+                                               antes do "R$", sem espaço)
     Filtra linhas de saldo do dia.
     """
 
@@ -20,7 +22,7 @@ class ParserPagBank(ParserBase):
     )
 
     LINHA_RE = re.compile(
-        r"^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+R\$\s*([\d\.]+,\d{2})\s*$"
+        r"^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(-)?R\$\s*([\d\.]+,\d{2})\s*$"
     )
 
     def parse(self, conteudo: bytes) -> List[LancamentoBase]:
@@ -37,15 +39,16 @@ class ParserPagBank(ParserBase):
                     if not m:
                         continue
 
-                    data_str, historico, valor_str = m.groups()
+                    data_str, historico, sinal, valor_str = m.groups()
                     data = data_str[:5]  # DD/MM
                     historico = historico.strip()
 
-                    # PagBank só tem créditos no extrato (vendas e rendimentos)
                     try:
                         valor = float(valor_str.replace(".", "").replace(",", "."))
                     except ValueError:
                         continue
+                    if sinal == "-":
+                        valor = -valor
 
                     resultado.append(LancamentoBase(data, historico, valor, self.conta_banco))
 
