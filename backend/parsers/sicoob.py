@@ -102,9 +102,16 @@ class ParserSicoob(ParserBase):
         # junto ("DD/MM/AAAA" em vez de "DD/MM") e o valor não ter o
         # prefixo "R$". Por isso cai no mesmo parser do modelo 2 — ver
         # ajustes de regex de data lá dentro pra aceitar ano opcional.
-        tem_data_com_ano = bool(re.search(r"^\d{2}/\d{2}/\d{4}\s+\S", texto_total, re.MULTILINE))
+        #
+        # Cuidado: o cabeçalho do extrato sempre tem UMA linha
+        # "DD/MM/AAAA EXTRATO CONTA CORRENTE HH:MM:SS" (a data de emissão,
+        # não uma linha de lançamento) que também bate nesse regex — por
+        # isso exige-se VÁRIAS ocorrências (linhas de lançamento de
+        # verdade), não só uma, pra não confundir com extratos do
+        # Modelo 1 que também têm essa linha de emissão no topo.
+        qtd_datas_com_ano = len(re.findall(r"^\d{2}/\d{2}/\d{4}\s+\S", texto_total, re.MULTILINE))
 
-        if "R$" in texto_total or tem_data_com_ano:
+        if "R$" in texto_total or qtd_datas_com_ano >= 5:
             return self._parse_modelo2(texto_total)
         else:
             return self._parse_modelo1(texto_total)
@@ -182,14 +189,26 @@ class ParserSicoob(ParserBase):
                     # Caso 3: valor estava na linha ANTERIOR
                     if idx_linha in valor_antes:
                         valor_str = valor_antes[idx_linha]
-                        j = i
-                        while j < n and not linhas[j].strip():
-                            j += 1
-                        if j < n:
-                            mi = self.INDICADOR_RE.match(linhas[j].strip())
-                            if mi:
-                                indicador = mi.group(1)
-                                i = j + 1
+
+                        # O indicador C/D pode estar (a) numa linha própria
+                        # logo a seguir, OU (b) grudado no final da própria
+                        # linha do histórico — acontece quando o valor caiu
+                        # sozinho na linha de cima (por isso já está em
+                        # valor_antes) mas o C/D não teve linha própria,
+                        # ficando "TRANSF. PIX SICOOB D" por exemplo.
+                        m_ind_fim = re.search(r"\s([CD])$", historico)
+                        if m_ind_fim:
+                            indicador = m_ind_fim.group(1)
+                            historico = historico[: m_ind_fim.start()].rstrip()
+                        else:
+                            j = i
+                            while j < n and not linhas[j].strip():
+                                j += 1
+                            if j < n:
+                                mi = self.INDICADOR_RE.match(linhas[j].strip())
+                                if mi:
+                                    indicador = mi.group(1)
+                                    i = j + 1
                         if not indicador:
                             continue
 
