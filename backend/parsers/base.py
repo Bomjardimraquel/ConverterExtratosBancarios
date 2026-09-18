@@ -23,6 +23,7 @@ def nome_banco(conta_banco: str) -> str:
         "11126": "Santander",
         "11044": "Bradesco",
         "11042": "Banco do Nordeste",
+        "11129": "SumUp",
     }
     return nomes.get(conta_banco, CONTAS.get(conta_banco, conta_banco))
 
@@ -40,11 +41,19 @@ def _extrair_nome_pix(descricao: str) -> str:
         r"CRED\.TR\.CT\.INTERCRE\s*[-–]?\s*",
         r"CRÉD\.TED[-–]STR\s*[-–]?\s*",
         r"CRÉD\.TR\.CT\.INTERCRE\s*[-–]?\s*",
+        # SumUp: historico chega como "Pix recebido - NOME" (montado pelo
+        # próprio parser a partir da coluna "Tipo"), sem nenhum dos
+        # prefixos verbosos acima — sem isso, o nome extraído ficava
+        # poluído com "Pix recebido -" na frente.
+        r"Pix recebido\s*[-–]?\s*",
     ]
     texto = descricao
     for pat in prefixos:
         texto = re.sub(pat, "", texto, flags=re.IGNORECASE).strip()
     texto = re.sub(r"^[-–\s]+", "", texto).strip()
+    # Prefixo de CPF/CNPJ parcial colado antes do nome (ex.: SumUp/Sicoob:
+    # "31.654.524 IURY GOMES DOS SANTOS") — mantém só o nome.
+    texto = re.sub(r"^\d{2}\.\d{3}\.\d{3}\s+", "", texto).strip()
     texto = re.sub(r"\*{3}\.\d{3}\.\d{3}-\*{2}", "", texto).strip()
     texto = re.sub(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", "", texto).strip()
     texto = re.sub(r"\b\d{10,}\b", "", texto).strip()
