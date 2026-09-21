@@ -8,6 +8,7 @@ const BANCOS = [
   { key: 'itau', nome: 'Itaú', conta: '11045' },
   { key: 'pagbank', nome: 'PagBank', conta: '11127' },
   { key: 'santander', nome: 'Santander', conta: '11126' },
+  { key: 'sumup', nome: 'SumUp', conta: '11129' },
   { key: 'bradesco', nome: 'Bradesco', conta: '11044' },
   { key: 'nordeste', nome: 'Banco do Nordeste', conta: '11042' },
 ];
