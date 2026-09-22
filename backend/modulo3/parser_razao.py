@@ -1,4 +1,22 @@
+"""
+Parser do "Razão Analítico Individual" do Prosoft (SpreadsheetML, extensão
+.xls mas é XML por dentro) — versão genérica pro Módulo 3.
 
+Diferente do modulo2/parser_razao.py (que é específico pra razão de conta
+banco e já sai direto pronto pra casar com extrato), este lê QUALQUER
+conta — Passivo, Despesa, Receita, ou Ativo com centenas de Terceiros —
+e devolve a estrutura crua em BlocoConta, sem aplicar nenhuma regra de
+negócio. As regras ficam todas em motor_analise.py.
+
+Ponto de atenção que custou um bug bobo durante os testes manuais: as
+linhas SALDO ANTERIOR e SALDO FINAL guardam o valor em DOIS lugares —
+a coluna "Débito" (texto com ponto decimal, tipo "320.12") e a coluna
+"Saldo" (texto com vírgula decimal, tipo "320,12"). São o mesmo número
+em dois formatos, não dois valores diferentes. Aqui sempre preferimos a
+coluna Débito (ponto decimal) quando ela existe, porque é mais barata de
+parsear (não precisa trocar separador) — a de vírgula só entra como
+fallback.
+"""
 import re
 import xml.etree.ElementTree as ET
 import datetime

@@ -1,3 +1,8 @@
+"""
+Modelos de dado do Módulo 3. Sem SQLModel aqui de propósito — nada disso
+vai pro banco, é só a estrutura em memória entre o parser, o motor e a
+resposta da API (mesmo espírito do modulo2/modelos.py).
+"""
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
@@ -18,13 +23,20 @@ class Lancamento:
 
 @dataclass
 class BlocoConta:
-    
+    """
+    Um bloco "Conta:" do razão. Quando a conta tem sub-razão por Terceiro
+    (Clientes, Fornecedores), cada Terceiro vira um BlocoConta próprio,
+    todos com o mesmo `acesso`/`classificador` — é assim que a gente
+    detecta "conta com Terceiro" (mais de um bloco repetindo o acesso).
+    """
     acesso: str
     classificador: str
     nome: str
     terceiro_id: Optional[str]
     terceiro_nome: Optional[str]
-    
+    # já com sinal: positivo = D (devedor), negativo = C (credor) — mesma
+    # convenção usada em toda a análise que fizemos nesta conversa
+    saldo_anterior: float
     saldo_final: float
     debito_total: float
     credito_total: float
