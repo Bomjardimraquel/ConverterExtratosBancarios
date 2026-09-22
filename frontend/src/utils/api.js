@@ -163,4 +163,38 @@ export const baixarExcelModulo2 = async (jobId, nomeArquivo) => {
   window.URL.revokeObjectURL(url);
 };
 
+// ── Módulo 3 (análise automática do razão) ─────────────────────────────
+
+export const listarEmpresasModulo3 = () => api.get('/modulo3/empresas');
+
+// grupo: 'ativo' | 'passivo' | 'despesas' | 'receitas'
+// Resposta esperada: { acessos: [{ codigo, nome }, ...] }
+export const listarAcessosSugeridos = (empresaId, grupo) => {
+  return api.get(`/modulo3/acessos/${empresaId}`, { params: { grupo } });
+};
+
+export const processarModulo3 = ({ empresaId, grupo, acessos, arquivoRazao }) => {
+  const form = new FormData();
+  form.append('empresa', empresaId);
+  form.append('grupo', grupo);
+  acessos.forEach(codigo => form.append('acessos', codigo));
+  form.append('arquivo_razao', arquivoRazao);
+  return api.post('/modulo3/processar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+// Resposta esperada: { status: 'processando' | 'concluido' | 'erro', resultado?, erro? }
+export const consultarStatusModulo3 = (jobId) => api.get(`/modulo3/status/${jobId}`);
+
+export const baixarExcelModulo3 = async (jobId, nomeArquivo) => {
+  const res = await api.get(`/modulo3/download/${jobId}`, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nomeArquivo;
+  link.click();
+  window.URL.revokeObjectURL(url);
+};
+
 export default api;

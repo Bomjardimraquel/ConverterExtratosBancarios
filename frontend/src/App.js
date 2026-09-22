@@ -4,6 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
 import UploadStep from './components/UploadStep';
 import UploadModulo2 from './components/UploadModulo2';
+import AnaliseRazao from './components/AnaliseRazao';
 import Login from './components/Login';
 import { processarExtrato, consultarStatusJob, exportarExcel, getMe, estaLogado } from './utils/api';
 
@@ -20,7 +21,7 @@ function extrairMensagemErro(err, padrao) {
 }
 
 function AppContent() {
-  const [modulo, setModulo] = useState('1'); // '1' | '2'
+  const [modulo, setModulo] = useState('1'); // '1' | '2' | '3'
   const [etapa, setEtapa] = useState('upload'); // upload | processando | resultado
   const [lancamentos, setLancamentos] = useState([]);
   const [meta, setMeta] = useState({ banco: '', nomeEmpresa: '', mesAno: '' });
@@ -108,6 +109,8 @@ function AppContent() {
       <main className="app-conteudo">
         {modulo === '2' ? (
           <UploadModulo2 />
+        ) : modulo === '3' ? (
+          <AnaliseRazao />
         ) : (
           <>
             {etapa === 'upload' && <UploadStep onProcessar={handleProcessar} loading={loading} />}

@@ -24,6 +24,8 @@ def listar_empresas() -> list:
             {
                 "id": e.id,
                 "nome": e.nome,
+                "grupo": e.grupo,      # "comercio" | "servicos" — usado pelo Módulo 3
+                "regime": e.regime,    # "simples" | "lucro_presumido" — usado pelo Módulo 3
                 "bancos": [{"key": b.banco_key, "conta": b.conta_banco} for b in e.bancos],
             }
             for e in empresas

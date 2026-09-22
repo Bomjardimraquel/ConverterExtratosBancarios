@@ -4,6 +4,7 @@ import { logout as logoutApi } from '../utils/api';
 const ITENS = [
   { key: '1', label: 'Extrato simples' },
   { key: '2', label: 'Conciliação completa' },
+  { key: '3', label: 'Análise de Razão' },
 ];
 
 export default function Sidebar({ modulo, onTrocarModulo }) {
