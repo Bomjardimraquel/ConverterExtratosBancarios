@@ -140,6 +140,8 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
                 cell.fill = fill
                 if col == 3:
                     cell.number_format = "#,##0.00"
+                elif col in (5, 6):
+                    cell.alignment = Alignment(wrap_text=True, vertical="top")
         wsp.column_dimensions['A'].width = 12
         wsp.column_dimensions['B'].width = 16
         wsp.column_dimensions['C'].width = 14
