@@ -1,6 +1,13 @@
 """
 Parser do "Razão Analítico Individual" da conta banco (Prosoft), exportado
 como SpreadsheetML (XML disfarçado de .xls).
+
+O relatório sai do Prosoft como SpreadsheetML, mas se alguém abrir esse
+arquivo no Excel e salvar de novo, ele vira um .xls binário de verdade
+(formato OLE2/BIFF) — mesmo relatório, mesmas colunas, arquivo
+completamente diferente por dentro. Os dois formatos acontecem na
+prática, então este módulo detecta qual é (pelos bytes mágicos do OLE2
+no início do arquivo) e usa o parser certo pra cada um.
 """
 import re
 import xml.etree.ElementTree as ET
@@ -12,6 +19,7 @@ except ImportError:
     from modelos import DespesaJaLancada
 
 _NS = {"ss": "urn:schemas-microsoft-com:office:spreadsheet"}
+_OLE2_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
 # Casa "duplic.n. 13801066-003", "duplic. n 13801066-003" etc — o número
 # que segue "duplic" (com ou sem ponto) e "n" (com ou sem ponto).
@@ -91,16 +99,59 @@ def _decodificar(raw: bytes) -> str:
     return raw.decode("windows-1252", errors="replace")
 
 
-def parse_razao_ja_lancado(caminho: str) -> list:
+def _e_xls_binario(caminho: str) -> bool:
+    with open(caminho, "rb") as f:
+        return f.read(8) == _OLE2_MAGIC
+
+
+def _numero_para_texto(valor: float) -> str:
+    """xlrd devolve número nativo (float) pra célula numérica — sem isso,
+    um débito/crédito viraria string tipo '320.0' certo, mas um código de
+    lançamento inteiro viraria '12345.0' errado. Converte pra int quando
+    o valor é um número inteiro, senão mantém a representação decimal
+    mais curta (sem notação científica pra magnitudes normais)."""
+    if valor == int(valor):
+        return str(int(valor))
+    return repr(valor)
+
+
+def _linhas_do_xml(caminho: str):
     with open(caminho, "rb") as f:
         raw = f.read()
     texto = _decodificar(raw)
     root = ET.fromstring(texto)
     ws = root.find("ss:Worksheet", _NS)
     table = ws.find("ss:Table", _NS)
-    resultado = []
     for row in table.findall("ss:Row", _NS):
-        vals = [_cell_text(c) for c in row.findall("ss:Cell", _NS)]
+        yield [_cell_text(c) for c in row.findall("ss:Cell", _NS)]
+
+
+def _linhas_do_binario(caminho: str):
+    import xlrd
+
+    wb = xlrd.open_workbook(caminho)
+    sh = wb.sheet_by_index(0)
+    for r in range(sh.nrows):
+        linha = []
+        for c in range(sh.ncols):
+            tipo = sh.cell_type(r, c)
+            valor = sh.cell_value(r, c)
+            if tipo == xlrd.XL_CELL_EMPTY:
+                valor = ""
+            elif tipo == xlrd.XL_CELL_DATE:
+                valor = xlrd.xldate_as_datetime(valor, wb.datemode).strftime("%d/%m/%Y")
+            elif tipo == xlrd.XL_CELL_NUMBER:
+                valor = _numero_para_texto(valor)
+            else:
+                valor = str(valor) if valor not in (None, "") else ""
+            linha.append(valor)
+        yield linha
+
+
+def parse_razao_ja_lancado(caminho: str) -> list:
+    linhas = _linhas_do_binario(caminho) if _e_xls_binario(caminho) else _linhas_do_xml(caminho)
+    resultado = []
+    for vals in linhas:
         if len(vals) < 9:
             continue
         lcto, docto, data_str, c_part, terc, cc, historico, debito, credito = (
