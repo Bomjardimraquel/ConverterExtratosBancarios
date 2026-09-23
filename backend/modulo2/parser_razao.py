@@ -74,10 +74,27 @@ def agrupar_duplicatas_com_juros(lista: list) -> list:
     return resultado
 
 
+def _decodificar(raw: bytes) -> str:
+    """
+    Tenta várias codificações em sequência, em vez de assumir sempre
+    windows-1252 — o Prosoft nem sempre exporta o arquivo na mesma
+    codificação, e um byte fora do mapeamento do windows-1252 (ex.:
+    0x81, 0x8D, 0x8F, 0x90, 0x9D) quebrava o parser inteiro. Mesmo padrão
+    já usado em carregador_despesas.py e aprendizado_despesas.py.
+    """
+    for encoding in ("utf-8-sig", "utf-8", "windows-1252", "latin-1"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    # último recurso: nunca deixa o parser quebrar por causa de codificação
+    return raw.decode("windows-1252", errors="replace")
+
+
 def parse_razao_ja_lancado(caminho: str) -> list:
     with open(caminho, "rb") as f:
         raw = f.read()
-    texto = raw.decode("windows-1252")
+    texto = _decodificar(raw)
     root = ET.fromstring(texto)
     ws = root.find("ss:Worksheet", _NS)
     table = ws.find("ss:Table", _NS)
