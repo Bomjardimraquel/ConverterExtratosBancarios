@@ -206,7 +206,7 @@ def regra_buraco_provisao(bloco: BlocoConta, data_referencia: Optional[date] = N
             f"Não encontrei provisão lançada na competência {mes:02d}/{ano} nesta conta "
             f"(cadência observada é de {passo} em {passo} mês(es), indo de "
             f"{_de_indice_mes(inicio)[1]:02d}/{_de_indice_mes(inicio)[0]} até "
-            f"{_de_indice_mes(fim)[1]:02d}/{_de_indice_mes(fim)[0]}) — se a nota/conta "
+            f"{_de_indice_mes(fim)[1]:02d}/{_de_indice_mes(fim)[0]}). Se a nota/conta "
             f"desse mês existe mas não foi provisionada, o saldo desta conta está "
             f"subestimado.",
             "Alto", referencia=f"{mes:02d}/{ano}",
@@ -304,7 +304,7 @@ def regra_provisao_diferente_pagamento(bloco: BlocoConta) -> list:
         achados.append(_achado_conta(
             bloco, "provisao_diferente_pagamento",
             f"Competência {mes:02d}/{ano}: provisionado R$ {provisionado:,.2f} "
-            f"(lançs {lancs_prov}), pago R$ {pago:,.2f} (lanç {lancs_pag}) — "
+            f"(lançs {lancs_prov}), pago R$ {pago:,.2f} (lanç {lancs_pag}), "
             f"diferença de R$ {diff:,.2f} ({pct:.0%} do provisionado). Confira "
             f"esses lançamentos no Prosoft pra achar de onde vem a diferença.",
             severidade, valor=diff, referencia=f"{mes:02d}/{ano}",
@@ -343,8 +343,8 @@ def regra_rescisao_com_saldo_anterior_zerado(bloco: BlocoConta) -> list:
             f"competência {mes:02d}/{ano} (bem anterior ao período deste razão), numa "
             f"conta com Saldo Anterior R$ 0,00. Se essa obrigação já existia antes do "
             f"período coberto, vale confirmar que o zeramento do Saldo Anterior está "
-            f"correto — pode ser que essa dívida estivesse em aberto o tempo todo sem "
-            f"aparecer em nenhum saldo.",
+            f"correto (pode ser que essa dívida estivesse em aberto o tempo todo sem "
+            f"aparecer em nenhum saldo).",
             "Médio", valor=valor, referencia=l.lancamento,
         ))
     return achados
@@ -365,11 +365,11 @@ def regra_saldo_anterior_zerado(blocos: list) -> Optional[Achado]:
         tipo="saldo_anterior_zerado_geral",
         descricao=(
             f"{zerados} de {len(blocos)} contas/terceiros deste arquivo ({pct:.0%}) têm "
-            f"Saldo Anterior R$ 0,00 — parece que este razão foi exportado sem trazer o "
-            f"saldo de abertura real. Isso também deixa o Saldo Final parcial (só reflete "
+            f"Saldo Anterior R$ 0,00 (parece que este razão foi exportado sem trazer o "
+            f"saldo de abertura real). Isso também deixa o Saldo Final parcial (só reflete "
             f"o que está neste arquivo, não o saldo real acumulado), então os achados de "
-            f"sinal de saldo abaixo foram suprimidos nas contas afetadas — não dava pra "
-            f"confiar neles pela mesma causa. Vale cruzar com o balancete ou reexportar "
+            f"sinal de saldo abaixo foram suprimidos nas contas afetadas, porque não dava "
+            f"pra confiar neles pela mesma causa. Vale cruzar com o balancete ou reexportar "
             f"com o Saldo Anterior incluído antes de confiar em saldo de qualquer conta "
             f"deste arquivo."
         ),

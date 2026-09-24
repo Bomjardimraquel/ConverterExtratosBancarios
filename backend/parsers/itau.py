@@ -34,13 +34,65 @@ class ParserItau(ParserBase):
     X_CNPJ    = (361, 460)
     X_VALOR   = (461, 570)
 
+    # Extrato em OFX (SGML 1.02, sem fechar tag de folha — só <STMTTRN>
+    # tem abre/fecha). Não usa nenhuma lib de OFX de fora: o formato aqui
+    # é simples o bastante pra ler cada bloco <STMTTRN>...</STMTTRN> com
+    # regex e pegar TRNTYPE/DTPOSTED/TRNAMT/MEMO direto.
+    OFX_STMTTRN_RE = re.compile(r"<STMTTRN>(.*?)</STMTTRN>", re.IGNORECASE | re.DOTALL)
+
     def parse(self, conteudo: bytes) -> List[LancamentoBase]:
-        
+        if b"<OFX>" in conteudo[:4000].upper() or conteudo[:20].upper().lstrip().startswith(b"OFXHEADER"):
+            return self._parse_ofx(conteudo)
+
         linhas_cols_doc: List[tuple] = []
         with pdfplumber.open(io.BytesIO(conteudo)) as pdf:
             for page in pdf.pages:
                 linhas_cols_doc.extend(self._linhas_cols_da_pagina(page))
         return self._monta_lancamentos(linhas_cols_doc)
+
+    @staticmethod
+    def _decodificar(raw: bytes) -> str:
+        # O cabeçalho do OFX às vezes declara ENCODING:USASCII/CHARSET:1252,
+        # mas na prática vem em utf-8 (ou, em bancos mais antigos, cp1252
+        # de verdade) — tenta em sequência em vez de confiar no cabeçalho.
+        for encoding in ("utf-8-sig", "utf-8", "windows-1252", "latin-1"):
+            try:
+                return raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return raw.decode("utf-8", errors="replace")
+
+    @staticmethod
+    def _ofx_tag(bloco: str, nome: str) -> str:
+        m = re.search(rf"<{nome}>\s*([^\r\n<]*)", bloco, re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    def _parse_ofx(self, conteudo: bytes) -> List[LancamentoBase]:
+        texto = self._decodificar(conteudo)
+        resultado = []
+
+        for bloco in self.OFX_STMTTRN_RE.findall(texto):
+            dtposted = self._ofx_tag(bloco, "DTPOSTED")
+            valor_txt = self._ofx_tag(bloco, "TRNAMT")
+            memo = self._ofx_tag(bloco, "MEMO").strip()
+
+            m_data = re.match(r"^(\d{4})(\d{2})(\d{2})", dtposted)
+            if not m_data or not valor_txt or not memo:
+                continue
+            if self.IGNORAR_DATA.search(memo):
+                continue  # "SALDO ANTERIOR" / "SALDO TOTAL DISPONÍVEL DIA" etc.
+
+            ano, mes, dia = m_data.groups()
+            data = f"{dia}/{mes}"
+
+            try:
+                valor = float(valor_txt)
+            except ValueError:
+                continue
+
+            resultado.append(LancamentoBase(data, memo, valor, self.conta_banco))
+
+        return resultado
 
     def _linhas_cols_da_pagina(self, page) -> List[tuple]:
         words = page.extract_words(x_tolerance=3, y_tolerance=3)

@@ -36,14 +36,15 @@ def get_acessos_sugeridos(empresa_id: str, grupo: str):
 async def processar(
     empresa: str = Form(...),
     grupo: str = Form(...),
-    acessos: list[str] = Form(...),
     arquivo_razao: UploadFile = File(...),
 ):
     """
-    Enfileira a análise do razão enviado. `acessos` é só rótulo pro
-    resultado — o motor processa todo bloco "Conta:" que encontrar no
-    arquivo, não filtra pelo que foi marcado na tela (ver
-    modulo3/parser_razao.py).
+    Enfileira a análise do razão enviado. O motor processa todo bloco
+    "Conta:" que encontrar no arquivo (ver modulo3/parser_razao.py); o
+    "grupo" aqui é só pra rotular/organizar o resultado (Ativo, Passivo,
+    Despesas ou Receitas) - a gente pode voltar a pedir o Acesso
+    específico quando tiver regras que dependam de conta a conta (ver
+    modulo3/acessos_sugeridos.py, hoje não usado por aqui).
     """
     if grupo not in GRUPOS_VALIDOS:
         raise HTTPException(400, f"grupo precisa ser um de {GRUPOS_VALIDOS}.")
@@ -54,7 +55,7 @@ async def processar(
 
     job = fila_processamento.enqueue(
         "modulo3.tasks_modulo3.processar_razao_job",
-        empresa, grupo, acessos, conteudo,
+        empresa, grupo, conteudo,
         job_timeout="10m",
         result_ttl=3600,
     )

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-hot-toast';
 import {
-  listarEmpresasModulo3, listarAcessosSugeridos,
+  listarEmpresasModulo3,
   processarModulo3, consultarStatusModulo3, baixarExcelModulo3,
 } from '../utils/api';
 
@@ -42,9 +42,6 @@ export default function AnaliseRazao() {
   const [empresaId, setEmpresaId] = useState('');
 
   const [grupo, setGrupo] = useState('');
-  const [acessosSugeridos, setAcessosSugeridos] = useState([]);
-  const [carregandoAcessos, setCarregandoAcessos] = useState(false);
-  const [acessosSelecionados, setAcessosSelecionados] = useState([]);
 
   const [arquivoRazao, setArquivoRazao] = useState(null);
 
@@ -64,33 +61,13 @@ export default function AnaliseRazao() {
   const handleEmpresaChange = (id) => {
     setEmpresaId(id);
     setGrupo('');
-    setAcessosSugeridos([]);
-    setAcessosSelecionados([]);
   };
 
   const handleGrupoChange = (g) => {
     setGrupo(g);
-    setAcessosSelecionados([]);
-    setCarregandoAcessos(true);
-    listarAcessosSugeridos(empresaId, g)
-      .then(res => setAcessosSugeridos(res.data.acessos || []))
-      .catch(() => toast.error('Não consegui carregar os acessos dessa empresa.'))
-      .finally(() => setCarregandoAcessos(false));
   };
 
-  const toggleAcesso = (codigo) => {
-    setAcessosSelecionados(prev => {
-      if (prev.includes(codigo)) return prev.filter(c => c !== codigo);
-      // no máximo 2 acessos por vez (ex: um par Passivo + Despesa conexo)
-      if (prev.length >= 2) {
-        toast.error('Selecione no máximo 2 acessos por vez.');
-        return prev;
-      }
-      return [...prev, codigo];
-    });
-  };
-
-  const tudoPreenchido = empresaId && grupo && acessosSelecionados.length > 0 && arquivoRazao;
+  const tudoPreenchido = empresaId && grupo && arquivoRazao;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -98,9 +75,7 @@ export default function AnaliseRazao() {
 
     setEtapa('processando');
     try {
-      const res = await processarModulo3({
-        empresaId, grupo, acessos: acessosSelecionados, arquivoRazao,
-      });
+      const res = await processarModulo3({ empresaId, grupo, arquivoRazao });
       setJobId(res.data.job_id);
       iniciarPolling(res.data.job_id);
     } catch (err) {
@@ -149,7 +124,6 @@ export default function AnaliseRazao() {
     setJobId(null);
     setErro('');
     setArquivoRazao(null);
-    setAcessosSelecionados([]);
   };
 
   if (etapa === 'processando') {
@@ -185,44 +159,55 @@ export default function AnaliseRazao() {
   }
 
   if (etapa === 'resultado' && resultado) {
+    const achados = resultado.achados || [];
+    const porSeveridade = achados.reduce((acc, a) => {
+      acc[a.severidade] = (acc[a.severidade] || 0) + 1;
+      return acc;
+    }, {});
+
     return (
       <>
         <div className="pagina-topbar">
           <div className="pagina-topbar-titulo">{resultado.nome_empresa}</div>
-          <div className="pagina-topbar-sub">{resultado.acessos_analisados?.join(' + ')}</div>
+          <div className="pagina-topbar-sub">{resultado.grupo ? resultado.grupo.charAt(0).toUpperCase() + resultado.grupo.slice(1) : ''}</div>
         </div>
         <div className="pagina-corpo">
-          <div className="eyebrow">Achados</div>
+          <div className="eyebrow">Resumo</div>
           <div className="metrics-grid">
+            <div className="metric-card">
+              <div className="metric-label">Contas analisadas</div>
+              <div className="metric-value">{resultado.total_contas}</div>
+            </div>
             <div className="metric-card">
               <div className="metric-label">Lançamentos analisados</div>
               <div className="metric-value">{resultado.total_lancamentos}</div>
             </div>
             <div className="metric-card">
               <div className="metric-label">Achados</div>
-              <div className="metric-value">{resultado.achados?.length || 0}</div>
+              <div className="metric-value">{achados.length}</div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
-            {(resultado.achados || []).map((a, i) => (
-              <div
-                key={i}
-                className="box-simples"
-                style={{
-                  background: SEVERIDADE_COR[a.severidade]?.bg || 'var(--surface2)',
-                  borderColor: SEVERIDADE_COR[a.severidade]?.border || 'var(--border)',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-                  <span>{a.acesso} — {a.nome_conta} {a.terceiro ? `— ${a.terceiro}` : ''}</span>
-                  <span>{a.valor != null ? `R$ ${a.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}</span>
+          {achados.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+              {['Alto', 'Médio', 'Baixo'].filter(s => porSeveridade[s]).map(s => (
+                <div
+                  key={s}
+                  className="box-simples"
+                  style={{
+                    background: SEVERIDADE_COR[s]?.bg || 'var(--surface2)',
+                    borderColor: SEVERIDADE_COR[s]?.border || 'var(--border)',
+                    fontSize: '0.85rem', fontWeight: 600, padding: '0.5rem 0.9rem',
+                  }}
+                >
+                  {porSeveridade[s]} {s}
                 </div>
-                <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{a.tipo}</div>
-                <div>{a.descricao}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+            O detalhe de cada achado (conta, lançamento e orientação) está no Excel.
           </div>
 
           <button onClick={handleBaixar} className="btn-pill btn-pill-primario">
@@ -284,44 +269,8 @@ export default function AnaliseRazao() {
         )}
 
         {grupo && (
-          <div>
-            <Label>Acessos sugeridos (até 2) *</Label>
-            {carregandoAcessos ? (
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Carregando...</div>
-            ) : acessosSugeridos.length === 0 ? (
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Nenhum acesso sugerido para esse grupo nessa empresa.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {acessosSugeridos.map(a => (
-                  <label
-                    key={a.codigo}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)',
-                      border: `1.5px solid ${acessosSelecionados.includes(a.codigo) ? 'var(--musgo)' : 'var(--border)'}`,
-                      background: acessosSelecionados.includes(a.codigo) ? 'var(--credit-bg)' : 'var(--surface)',
-                      cursor: 'pointer', fontSize: '0.85rem',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={acessosSelecionados.includes(a.codigo)}
-                      onChange={() => toggleAcesso(a.codigo)}
-                    />
-                    <span style={{ fontWeight: 600 }}>{a.codigo}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{a.nome}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {acessosSelecionados.length > 0 && (
           <FileField
-            label="Razão do(s) acesso(s) selecionado(s) *"
+            label="Razão do grupo selecionado *"
             aceita={{ 'application/vnd.ms-excel': ['.xls'] }}
             dica=".xls, formato razão do Prosoft"
             arquivo={arquivoRazao}

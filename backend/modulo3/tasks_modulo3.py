@@ -33,17 +33,15 @@ def _achado_para_dict(a) -> dict:
 def processar_razao_job(
     empresa_id: str,
     grupo: str,
-    acessos: list,
     arquivo_razao_conteudo: bytes,
 ) -> dict:
     """
-    empresa_id: código da empresa (ex: "A25") — só usado como rótulo no
+    empresa_id: código da empresa (ex: "A25"), só usado como rótulo no
         resultado; a análise em si não depende de config nenhuma dela.
-    grupo: "ativo" | "passivo" | "despesas" | "receitas" — o grupo que a
-        pessoa escolheu na tela, guardado só pra exibir no resultado.
-    acessos: os Acessos que a pessoa marcou como alvo — o motor analisa
-        TODOS os blocos que encontrar no arquivo de qualquer forma (ver
-        parser_razao.py), isso aqui é só rótulo/contexto pro resultado.
+    grupo: "ativo" | "passivo" | "despesas" | "receitas", o grupo que a
+        pessoa escolheu na tela, guardado só pra exibir no resultado. O
+        motor analisa TODOS os blocos que encontrar no arquivo, não filtra
+        por acesso específico (ver parser_razao.py).
     """
     with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
         tmp.write(arquivo_razao_conteudo)
@@ -70,7 +68,6 @@ def processar_razao_job(
         "empresa_id": empresa_id,
         "nome_empresa": metadados.get("empresa") or empresa_id,
         "grupo": grupo,
-        "acessos_analisados": acessos,
         "total_contas": len(blocos),
         "total_lancamentos": total_lancamentos,
         "achados": [_achado_para_dict(a) for a in achados],

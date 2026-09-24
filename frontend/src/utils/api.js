@@ -173,11 +173,10 @@ export const listarAcessosSugeridos = (empresaId, grupo) => {
   return api.get(`/modulo3/acessos/${empresaId}`, { params: { grupo } });
 };
 
-export const processarModulo3 = ({ empresaId, grupo, acessos, arquivoRazao }) => {
+export const processarModulo3 = ({ empresaId, grupo, arquivoRazao }) => {
   const form = new FormData();
   form.append('empresa', empresaId);
   form.append('grupo', grupo);
-  acessos.forEach(codigo => form.append('acessos', codigo));
   form.append('arquivo_razao', arquivoRazao);
   return api.post('/modulo3/processar', form, {
     headers: { 'Content-Type': 'multipart/form-data' },

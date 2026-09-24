@@ -25,7 +25,7 @@ def gerar_excel_achados(achados: list, nome_empresa: str = "", periodo: str = No
     ws = wb.active
     ws.title = "Achados"
 
-    ws["A1"] = f"Análise de razão — {nome_empresa}" + (f" ({periodo})" if periodo else "")
+    ws["A1"] = f"Análise de razão: {nome_empresa}" + (f" ({periodo})" if periodo else "")
     ws["A1"].font = Font(bold=True, size=12)
     ws.merge_cells("A1:I1")
 
@@ -59,7 +59,7 @@ def gerar_excel_achados(achados: list, nome_empresa: str = "", periodo: str = No
         ws.column_dimensions[get_column_letter(col)].width = largura
 
     if not achados:
-        ws.cell(row=linha_header + 1, column=1, value="Nenhum achado — tudo consistente nas regras aplicadas.")
+        ws.cell(row=linha_header + 1, column=1, value="Nenhum achado. Tudo consistente nas regras aplicadas.")
 
     buffer = io.BytesIO()
     wb.save(buffer)

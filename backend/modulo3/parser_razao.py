@@ -1,3 +1,30 @@
+"""
+Parser do "Razão Analítico Individual" do Prosoft — versão genérica pro
+Módulo 3. Diferente do modulo2/parser_razao.py (que é específico pra
+razão de conta banco e já sai direto pronto pra casar com extrato), este
+lê QUALQUER conta — Passivo, Despesa, Receita, ou Ativo com centenas de
+Terceiros — e devolve a estrutura crua em BlocoConta, sem aplicar
+nenhuma regra de negócio. As regras ficam todas em motor_analise.py.
+
+O relatório sai do Prosoft como SpreadsheetML (XML disfarçado de .xls),
+mas se alguém abrir esse arquivo no Excel e salvar de novo, ele vira um
+.xls binário de verdade (formato OLE2/BIFF) — mesmo relatório, mesmas
+colunas, arquivo completamente diferente por dentro. Os dois formatos
+acontecem na prática, então este módulo detecta qual é (pelos bytes
+mágicos do OLE2 no início do arquivo) e usa o parser certo pra cada um.
+As colunas são as mesmas nos dois formatos: 0=LCTO, 1=DOCTO, 2=DATA,
+6=HISTÓRICO, 7=DÉBITO, 8=CRÉDITO, 9=SALDO, 10=D/C.
+
+Ponto de atenção que custou um bug bobo durante os testes manuais no
+formato SpreadsheetML: as linhas SALDO ANTERIOR e SALDO FINAL guardam o
+valor em DOIS lugares — a coluna "Débito ou Crédito" (texto com ponto
+decimal, tipo "320.12") e a coluna "Saldo" (texto com vírgula decimal,
+tipo "320,12"). São o mesmo número em dois formatos, não dois valores
+diferentes. Aqui sempre preferimos a coluna Débito/Crédito (ponto
+decimal) quando ela existe — a de vírgula só entra como fallback. No
+.xls binário essa ambiguidade não existe: o xlrd já devolve número
+nativo em qualquer uma das colunas, sem string pra converter.
+"""
 import re
 import xml.etree.ElementTree as ET
 import datetime
@@ -249,7 +276,7 @@ def _parse_razao_xml(caminho: str) -> list:
     ws = root.find("ss:Worksheet", _NS)
     table = ws.find("ss:Table", _NS) if ws is not None else None
     if table is None:
-        raise RazaoParseError("Não achei a planilha dentro do XML — formato inesperado.")
+        raise RazaoParseError("Não achei a planilha dentro do XML (formato inesperado).")
 
     linhas = (_linha_para_celulas(row) for row in table.findall("ss:Row", _NS))
     return _blocos_de_linhas(linhas, parse_saldo_fallback=lambda v: (_parse_saldo_virgula(v) or 0.0))
