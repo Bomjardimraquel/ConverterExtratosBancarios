@@ -40,6 +40,15 @@ class ParserBB(ParserBase):
                 texto_total = "\n".join(
                     p.extract_text(x_tolerance=3, y_tolerance=3) or "" for p in pdf.pages
                 )
+                # Extrato "Autoatendimento" (autoatendimento2.bb.com.br,
+                # ApjExtratoContaCorrente) — checa ANTES do modelo 2, porque
+                # esse formato também termina os valores em C/D e cairia
+                # errado no modelo 2 (que é linha-a-linha e não dá conta da
+                # tabela real desse formato).
+                if "ApjExtratoContaCorrente" in texto_total or re.search(
+                    r"AG\.?\s*\n?\s*ORIGEM", texto_total, re.IGNORECASE
+                ):
+                    return self._parse_modelo3(pdf)
             if re.search(r"\d{1,3}(?:\.\d{3})*,\d{2}\s+[CD]\b", texto_total):
                 return self._parse_modelo2(texto_total.splitlines())
             else:
@@ -205,6 +214,117 @@ class ParserBB(ParserBase):
 
         historico = historico.strip(" -")
         return historico if len(historico) > 3 else texto_antes_valor
+
+    def _parse_modelo3(self, pdf) -> List[LancamentoBase]:
+        """
+        Extrato "Autoatendimento" do BB (autoatendimento2.bb.com.br,
+        ApjExtratoContaCorrente) — é uma tabela de verdade (renderizada de
+        HTML pra PDF), sem grade vertical entre colunas, só linhas
+        horizontais finas separando cada lançamento.
+
+        Não dá pra usar extract_text() linha a linha aqui: as colunas
+        DATA/AG.ORIGEM/LOTE/DOCUMENTO/VALOR ficam centralizadas na altura
+        do texto de HISTÓRICO (que ocupa de 1 a 3 linhas dependendo do
+        lançamento), então a ordem das linhas no texto extraído não bate
+        com a ordem visual da tabela — o texto do "tipo" (ex.: "Compra com
+        Cartão") sai ANTES da linha com a data, e o resto do detalhe sai
+        DEPOIS, intercalado com o próximo lançamento.
+
+        Em vez disso, usa as retas finas (rects com altura < 2pt) que
+        desenham cada linha da tabela: a posição X de cada segmento dá o
+        limite de cada coluna (constante em todas as páginas), e a posição
+        Y de cada reta dá o início/fim da faixa vertical de cada
+        lançamento (que pode ter 1 a 3 linhas de altura). Dentro de cada
+        faixa, agrupa as palavras por coluna (bounding box) e por linha
+        dentro da coluna, pra reconstruir o texto igual ele aparece na
+        tela.
+        """
+        resultado = []
+        ultima_data = None
+
+        for page in pdf.pages:
+            finas = [r for r in page.rects if (r["bottom"] - r["top"]) < 2]
+            if not finas:
+                continue
+
+            xs = sorted(set(round(r["x0"], 1) for r in finas))
+            borda_direita = max(r["x1"] for r in finas)
+            limites_coluna = xs + [borda_direita]
+            if len(limites_coluna) < 3:
+                continue
+
+            topos = sorted(set(round(r["top"], 1) for r in finas))
+            if len(topos) < 2:
+                continue
+
+            palavras = page.extract_words(x_tolerance=2, y_tolerance=2, keep_blank_chars=False)
+
+            for i in range(len(topos) - 1):
+                y0, y1 = topos[i], topos[i + 1]
+                palavras_linha = [
+                    w for w in palavras if y0 - 0.5 <= w["top"] < y1 - 0.5
+                ]
+                if not palavras_linha:
+                    continue
+
+                colunas = [[] for _ in range(len(limites_coluna) - 1)]
+                for w in palavras_linha:
+                    for c in range(len(limites_coluna) - 1):
+                        if limites_coluna[c] - 1 <= w["x0"] < limites_coluna[c + 1] - 1:
+                            colunas[c].append(w)
+                            break
+
+                data_txt = self._m3_texto_coluna(colunas, 0)
+                # coluna 3 = HISTÓRICO (0=DATA, 1=AG.ORIGEM, 2=LOTE,
+                # 3=HISTÓRICO, 4=DOCUMENTO, 5=VALOR)
+                historico_txt = self._m3_texto_coluna(colunas, 3) if len(colunas) > 3 else ""
+                valor_txt = self._m3_texto_coluna(colunas, 5) if len(colunas) > 5 else ""
+
+                if re.match(r"^\d{2}/\d{2}/\d{4}$", data_txt):
+                    ultima_data = data_txt[:5]
+
+                if not historico_txt or self.IGNORAR_RE.search(historico_txt):
+                    continue
+                if ultima_data is None:
+                    continue
+
+                m_val = re.search(r"(\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])?", valor_txt)
+                if not m_val:
+                    continue
+
+                valor_str, indicador = m_val.group(1), m_val.group(2)
+                try:
+                    valor = float(valor_str.replace(".", "").replace(",", "."))
+                except ValueError:
+                    continue
+                if indicador == "D":
+                    valor = -valor
+
+                resultado.append(LancamentoBase(ultima_data, historico_txt, valor, self.conta_banco))
+
+        return resultado
+
+    @staticmethod
+    def _m3_texto_coluna(colunas: list, idx: int) -> str:
+        """Junta as palavras de uma coluna, agrupando por linha (baseado na
+        proximidade de 'top') e juntando as linhas com ' - ', na mesma
+        convenção usada no resto do histórico deste parser."""
+        ws = sorted(colunas[idx], key=lambda w: (round(w["top"]), w["x0"]))
+        linhas: list = []
+        atual_top = None
+        buffer: list = []
+        for w in ws:
+            t = round(w["top"])
+            if atual_top is None or abs(t - atual_top) <= 2:
+                buffer.append(w["text"])
+                atual_top = t if atual_top is None else atual_top
+            else:
+                linhas.append(" ".join(buffer))
+                buffer = [w["text"]]
+                atual_top = t
+        if buffer:
+            linhas.append(" ".join(buffer))
+        return " - ".join(l.strip() for l in linhas if l.strip())
 
     def _parse_modelo2(self, linhas: List[str]) -> List[LancamentoBase]:
         resultado = []
