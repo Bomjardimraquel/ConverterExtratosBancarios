@@ -1,5 +1,14 @@
+"""
+MotorAnaliseRazao — regras "Nível 1": tudo aqui é mecânico, derivado só do
+que está dentro do próprio razão, sem cadastro nenhum por empresa. Cada
+regra recebe um (ou uma lista de) BlocoConta e devolve list[Achado] (pode
+ser vazia).
+
+Pares de reconciliação Passivo↔Despesa e listas de contas retificadoras
+esperadas (Nível 2) NÃO estão aqui — dependem de cadastro que ainda não
+existe, ficam pra próxima etapa.
+"""
 import re
-import statistics
 from collections import Counter, defaultdict
 from datetime import date
 from typing import Optional
@@ -21,9 +30,12 @@ AGING_ALTO_DIAS = 120
 # abaixo desse valor, aging não some da lista, só não grita "Alto"/"Médio"
 AGING_VALOR_MINIMO = 500.0
 
-# desvio da mediana histórica de fechamento mensal
-PADRAO_MEDIO_PCT = 0.30
-PADRAO_ALTO_PCT = 0.50
+# diferença entre provisionado e pago numa competência, como % do que
+# foi provisionado — abaixo disso é arredondamento, não achado
+FECHAMENTO_TOLERANCIA_PCT = 0.01
+FECHAMENTO_TOLERANCIA_MINIMA = 0.10  # e nunca menos que 10 centavos
+FECHAMENTO_MEDIO_PCT = 0.15
+FECHAMENTO_ALTO_PCT = 0.50
 
 # contas cujo nome geralmente autoriza saldo devedor temporário no
 # Passivo, entre a provisão e o pagamento (visto em Cofins/FGTS/INSS a
@@ -33,6 +45,33 @@ _PASSIVO_TOLERA_DEVEDOR_RE = re.compile(r"a Recolher|a Pagar|^Prov\.", re.IGNORE
 _COMPETENCIA_RE = re.compile(
     r"ref\.?\s*(?:m[êe]s|comp\.?)\s*(\d{2})/(\d{4})", re.IGNORECASE
 )
+
+# segundo formato de competência usado pelo Prosoft nas linhas de
+# provisão geradas pela folha ("...s/folha pgto JAN/2026", "c/fol
+# FEV/2026", "c/Resc MAR/2026 FULANO DE TAL") — mês abreviado em vez de
+# "ref.mês XX/AAAA", que só aparece nas linhas de pagamento ("Pg....")
+_MESES_ABREV = {
+    "JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6,
+    "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12,
+}
+_COMPETENCIA_NOME_RE = re.compile(
+    r"\b(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/(\d{4})\b", re.IGNORECASE
+)
+
+
+def _extrair_competencia(historico: str) -> Optional[int]:
+    """Acha a competência (índice ano*12+mês) citada no histórico, testando
+    os dois formatos que o Prosoft usa. Devolve None se não achar nenhum —
+    quem chama decide o que fazer com lançamentos sem competência clara."""
+    m = _COMPETENCIA_RE.search(historico or "")
+    if m:
+        return _indice_mes(int(m.group(2)), int(m.group(1)))
+    m2 = _COMPETENCIA_NOME_RE.search(historico or "")
+    if m2:
+        mes = _MESES_ABREV.get(m2.group(1).upper())
+        if mes:
+            return _indice_mes(int(m2.group(2)), mes)
+    return None
 
 
 def _achado_conta(bloco: BlocoConta, tipo, descricao, severidade, valor=None, referencia=None):
@@ -210,62 +249,64 @@ def regra_buraco_pagamento(bloco: BlocoConta, data_referencia: Optional[date] = 
 
 def regra_provisao_diferente_pagamento(bloco: BlocoConta) -> list:
     """
-    Compara o valor provisionado contra o pago, competência a competência
-    — mas NÃO contra zero. Várias contas têm um gap normal e sistemático
-    entre provisão e pagamento (INSS: o pago inclui a parte retida do
-    funcionário, que não está na provisão patronal; Cofins/PIS: uma
-    compensação de retenção reduz o DARF antes do pagamento) — nesses
-    casos, todo mês foge de "zero" do mesmo jeito, e isso é normal.
-    O que indica problema de verdade é a competência que foge do padrão
-    das OUTRAS competências desta mesma conta, por isso a comparação é
-    contra a mediana histórica dela mesma, não contra igualdade perfeita.
+    Reconciliação exata por competência: soma TODO lançamento a crédito
+    que cita aquela competência no histórico — não só as linhas que
+    começam com "Vlr.prov" (isso excluía coisa que também compõe o valor
+    devido daquele mês, tipo o desconto retido do funcionário e ajustes
+    de rescisão) — e compara com o total pago naquela competência (linhas
+    "Pg." que citam a mesma competência). Rescisão entra no total, porque
+    ela é uma cobrança a mais dentro da mesma competência, não um evento
+    à parte (diferente de regra_buraco_provisao/regra_buraco_pagamento,
+    onde ela só atrapalharia a leitura da cadência mensal).
+
+    Cada achado lista os números de lançamento dos dois lados, pra achar
+    rápido no Prosoft qual lançamento específico está causando a
+    diferença — em vez de só apontar "o saldo está estranho".
     """
     provisao_por_competencia = defaultdict(float)
+    provisao_lancs = defaultdict(list)
     pagamento_por_competencia = defaultdict(float)
+    pagamento_lancs = defaultdict(list)
 
     for l in bloco.lancamentos:
-        if _RESCISAO_RE.search(l.historico or ""):
+        indice = _extrair_competencia(l.historico or "")
+        if indice is None:
             continue
-        if _PROVISAO_RE.match(l.historico or ""):
-            indice = _indice_mes(l.data.year, l.data.month)
+        if l.credito > 0:
             provisao_por_competencia[indice] += l.credito
-        elif _PAGAMENTO_RE.match(l.historico or ""):
-            m = _COMPETENCIA_RE.search(l.historico or "")
-            if m:
-                indice = _indice_mes(int(m.group(2)), int(m.group(1)))
-                pagamento_por_competencia[indice] += l.debito
+            provisao_lancs[indice].append(l.lancamento or "s/nº")
+        elif _PAGAMENTO_RE.match(l.historico or "") and l.debito > 0:
+            pagamento_por_competencia[indice] += l.debito
+            pagamento_lancs[indice].append(l.lancamento or "s/nº")
 
-    pares = []
+    achados = []
     for indice in sorted(set(provisao_por_competencia) & set(pagamento_por_competencia)):
         provisionado = provisao_por_competencia[indice]
         pago = pagamento_por_competencia[indice]
         if provisionado <= TOLERANCIA_ARITMETICA:
             continue
-        pares.append((indice, provisionado, pago, (provisionado - pago) / provisionado))
 
-    if len(pares) < 3:
-        return []  # sem pelo menos 3 competências não dá pra saber qual é "o padrão"
+        diff = provisionado - pago
+        pct = abs(diff) / provisionado
+        if pct < FECHAMENTO_TOLERANCIA_PCT or abs(diff) < FECHAMENTO_TOLERANCIA_MINIMA:
+            continue  # arredondamento de centavos, não é achado
 
-    razoes = [r for _, _, _, r in pares]
-    mediana = statistics.median(razoes)
-
-    achados = []
-    for indice, provisionado, pago, razao in pares:
-        desvio = abs(razao - mediana)
-        if desvio >= PADRAO_ALTO_PCT:
+        if pct >= FECHAMENTO_ALTO_PCT:
             severidade = "Alto"
-        elif desvio >= PADRAO_MEDIO_PCT:
+        elif pct >= FECHAMENTO_MEDIO_PCT:
             severidade = "Médio"
         else:
-            continue
+            severidade = "Baixo"
+
         ano, mes = _de_indice_mes(indice)
-        diff = provisionado - pago
+        lancs_prov = ", ".join(provisao_lancs[indice])
+        lancs_pag = ", ".join(pagamento_lancs[indice])
         achados.append(_achado_conta(
             bloco, "provisao_diferente_pagamento",
-            f"Competência {mes:02d}/{ano}: provisionado R$ {provisionado:,.2f}, pago "
-            f"R$ {pago:,.2f} (diferença de R$ {diff:,.2f}, {razao:.0%} do provisionado). "
-            f"Essa conta normalmente tem uma diferença de {mediana:.0%} entre provisão e "
-            f"pagamento — esta competência fugiu bastante desse padrão.",
+            f"Competência {mes:02d}/{ano}: provisionado R$ {provisionado:,.2f} "
+            f"(lançs {lancs_prov}), pago R$ {pago:,.2f} (lanç {lancs_pag}) — "
+            f"diferença de R$ {diff:,.2f} ({pct:.0%} do provisionado). Confira "
+            f"esses lançamentos no Prosoft pra achar de onde vem a diferença.",
             severidade, valor=diff, referencia=f"{mes:02d}/{ano}",
         ))
     return achados
@@ -374,9 +415,12 @@ def regra_concentracao_e_aging(blocos: list, data_referencia: Optional[date] = N
 
         if data_referencia:
             for b in positivos:
-                ultimo = max((l.data for l in b.lancamentos), default=None)
-                if ultimo is None:
+                # não só a data — pega o lançamento inteiro, pra poder citar
+                # o número dele (acha rápido no Prosoft qual é)
+                ultimo_lanc = max(b.lancamentos, key=lambda l: l.data, default=None)
+                if ultimo_lanc is None:
                     continue
+                ultimo = ultimo_lanc.data
                 dias = (data_referencia - ultimo).days
                 if dias >= AGING_ALTO_DIAS:
                     severidade = "Alto"
@@ -389,8 +433,9 @@ def regra_concentracao_e_aging(blocos: list, data_referencia: Optional[date] = N
                 achados.append(_achado_conta(
                     b, "saldo_parado",
                     f"Saldo em aberto de R$ {b.saldo_final:,.2f} sem nenhum lançamento "
-                    f"novo há {dias} dias (último em {ultimo.strftime('%d/%m/%Y')}).",
-                    severidade, valor=b.saldo_final,
+                    f"novo há {dias} dias (último em {ultimo.strftime('%d/%m/%Y')}, "
+                    f"lanç {ultimo_lanc.lancamento or 's/nº'}: \"{ultimo_lanc.historico}\").",
+                    severidade, valor=b.saldo_final, referencia=ultimo_lanc.lancamento,
                 ))
 
     return achados
