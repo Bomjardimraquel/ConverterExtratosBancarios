@@ -294,13 +294,6 @@ export default function UploadModulo2() {
 
         <FileField
           label="Extrato do banco *"
-          aceita={{
-            'application/pdf': ['.pdf'],
-            'text/plain': ['.txt'],
-            'application/x-ofx': ['.ofx'],
-            'application/vnd.intu.qbo': ['.ofx'],
-            'application/octet-stream': ['.ofx'],
-          }}
           dica="PDF, TXT ou OFX"
           arquivo={extrato}
           onArquivo={setExtrato}
