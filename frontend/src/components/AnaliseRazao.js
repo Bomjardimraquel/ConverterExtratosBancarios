@@ -224,7 +224,7 @@ export default function AnaliseRazao() {
   return (
     <>
       <div className="pagina-topbar">
-        <div className="pagina-topbar-titulo">Análise de Razão</div>
+        <div className="pagina-topbar-titulo">Análise de razão</div>
         <div className="pagina-topbar-sub">Consistência de saldos, provisões e lançamentos por conta</div>
       </div>
 
