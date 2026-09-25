@@ -101,6 +101,8 @@ def gerar_excel_final(motor, resultado, titulo_planilha: str, caminho: str):
                 cell.alignment = Alignment(horizontal="right")
             elif col in (4, 5, 6, 7):
                 cell.alignment = Alignment(horizontal="center")
+            elif col == 10:
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
         row_idx += 1
 
     total_row = row_idx

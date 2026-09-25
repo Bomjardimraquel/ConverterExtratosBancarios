@@ -86,7 +86,16 @@ class ParserSicoob(ParserBase):
         r"^[\*\d]{3}\.[\*\d]{3}\.[\*\d]{3}|^\d{2}\.\d{3}\.\d{3}"
     )
 
+    # Extrato em OFX — diferente do Itaú (SGML sem fechar tag de folha),
+    # o do Sicoob fecha toda tag (<TRNTYPE>CREDIT</TRNTYPE> etc.), mas o
+    # regex abaixo funciona pros dois formatos: captura tudo até o
+    # próximo "<", seja ele a tag de fechamento ou a tag seguinte.
+    OFX_STMTTRN_RE = re.compile(r"<STMTTRN>(.*?)</STMTTRN>", re.IGNORECASE | re.DOTALL)
+
     def parse(self, conteudo: bytes) -> List[LancamentoBase]:
+        if b"<OFX>" in conteudo[:4000].upper() or conteudo[:20].upper().lstrip().startswith(b"OFXHEADER"):
+            return self._parse_ofx(conteudo)
+
         with pdfplumber.open(io.BytesIO(conteudo)) as pdf:
             texto_total = ""
             for page in pdf.pages:
@@ -391,6 +400,65 @@ class ParserSicoob(ParserBase):
                 valor = float(valor_str.replace(".", "").replace(",", "."))
                 if indicador == "D":
                     valor = -valor
+            except ValueError:
+                continue
+
+            resultado.append(LancamentoBase(data, historico, valor, self.conta_banco))
+
+        return resultado
+    # ─────────────────────────────────────────────────────────────────────────
+    # OFX
+    # ─────────────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _decodificar(raw: bytes) -> str:
+        # Cabeçalho do OFX costuma dizer ENCODING:USASCII/CHARSET:1252,
+        # mas isso nem sempre bate com a codificação real do arquivo —
+        # tenta em sequência em vez de confiar cegamente no cabeçalho
+        # (mesmo padrão usado no parser do Itaú e no razão do módulo 2).
+        for encoding in ("utf-8-sig", "utf-8", "windows-1252", "latin-1"):
+            try:
+                return raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return raw.decode("utf-8", errors="replace")
+
+    @staticmethod
+    def _ofx_tag(bloco: str, nome: str) -> str:
+        m = re.search(rf"<{nome}>\s*([^\r\n<]*)", bloco, re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    def _parse_ofx(self, conteudo: bytes) -> List[LancamentoBase]:
+        """
+        OFX do Sicoob: cada <STMTTRN> traz <MEMO> (rótulo genérico, ex.:
+        "PIX RECEBIDO - OUTRA IF" ou "TRANSF.RECEBIDA - PIX SICOOB") e,
+        quando existe, <NAME> com quem pagou/recebeu de verdade (ex.:
+        "Recebimento Pix JOSE CARLOS LADE" ou "REM.: ECOMEL COMERCIO...").
+        Junta os dois (MEMO + NAME) no histórico — os prefixos genéricos
+        do MEMO já são removidos depois por _extrair_nome_pix (base.py),
+        que tem regras feitas justamente pra esses textos do Sicoob.
+        """
+        texto = self._decodificar(conteudo)
+        resultado = []
+
+        for bloco in self.OFX_STMTTRN_RE.findall(texto):
+            dtposted = self._ofx_tag(bloco, "DTPOSTED")
+            valor_txt = self._ofx_tag(bloco, "TRNAMT")
+            memo = self._ofx_tag(bloco, "MEMO").strip()
+            nome = self._ofx_tag(bloco, "NAME").strip()
+
+            m_data = re.match(r"^(\d{4})(\d{2})(\d{2})", dtposted)
+            if not m_data or not valor_txt:
+                continue
+
+            historico = f"{memo} {nome}".strip() if nome else memo
+            if not historico or self.IGNORAR_RE.search(historico):
+                continue
+
+            ano, mes, dia = m_data.groups()
+            data = f"{dia}/{mes}"
+
+            try:
+                valor = float(valor_txt)
             except ValueError:
                 continue
 
