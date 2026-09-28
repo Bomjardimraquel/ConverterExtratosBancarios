@@ -58,7 +58,17 @@ class ParserBB(ParserBase):
                 # em (+)/(-) igual ao modelo 1, mas aqui a DATA vem na
                 # MESMA linha do lote/documento/valor (não numa linha
                 # separada antes), então precisa de lógica própria.
-                if "Extrato de Conta Corrente" in texto_total:
+                #
+                # Cuidado: esse mesmo cabeçalho "Extrato de Conta Corrente"
+                # também aparece em extratos que são modelo 1 de verdade
+                # (data sozinha numa linha, valor só na linha seguinte) —
+                # não dá pra usar só o texto do cabeçalho pra decidir. O
+                # que diferencia de verdade é ter uma linha com a DATA e o
+                # VALOR juntos (com (+)/(-) no fim).
+                if re.search(
+                    r"^\d{2}/\d{2}/\d{4}[ \t]+.*\d{1,3}(?:\.\d{3})*,\d{2}[ \t]*\([+-]\)[ \t]*$",
+                    texto_total, re.MULTILINE
+                ):
                     return self._parse_modelo4(texto_total.splitlines())
             if re.search(r"\d{1,3}(?:\.\d{3})*,\d{2}\s+[CD]\b", texto_total):
                 return self._parse_modelo2(texto_total.splitlines())
