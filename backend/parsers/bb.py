@@ -7,11 +7,15 @@ from typing import List
 
 class ParserBB(ParserBase):
 
+    # Nota: "rende facil" / "aplicação" / "resgate" NÃO entram aqui — a
+    # Raquel pediu pra esses lançamentos aparecerem normalmente na
+    # planilha (aplicação/resgate automático do BB Rende Fácil é
+    # movimentação real de dinheiro, precisa conciliar).
     IGNORAR_RE = re.compile(
         r"^saldo|s\s*a\s*l\s*d\s*o|total aplic|sujeito|transação efetuada|"
         r"valide no app|recebeu cobran|bb\.com\.br|https?://|"
         r"cliente\b|agência:|conta:|lançamentos$|dia\s+lote|"
-        r"00/00/0000|rende\s*f[aá]cil|^\*\s*saldo|total aplicações|"
+        r"00/00/0000|^\*\s*saldo|total aplicações|"
         r"^\s*$",
         re.IGNORECASE
     )
@@ -222,6 +226,22 @@ class ParserBB(ParserBase):
         historico = historico.strip(" -")
         return historico if len(historico) > 3 else texto_antes_valor
 
+    def _m4_precisa_rotulo(self, linha: str) -> bool:
+        """true se `linha` for uma linha data+valor (modelo 4) cujo texto
+        entre documento e valor NÃO traz histórico embutido — ou seja,
+        esse lançamento vai precisar pegar o rótulo da linha anterior."""
+        m_data = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(.*)", linha.strip())
+        if not m_data:
+            return False
+        m_val = self.VALOR_M1_RE.search(m_data.group(2))
+        if not m_val:
+            return False
+        texto_antes_valor = m_data.group(2)[:m_val.start()].strip()
+        detalhe = re.sub(r"^(?:\d+\s+){0,2}", "", texto_antes_valor).strip()
+        if re.match(r"^[\d\s./\-]*$", detalhe):
+            detalhe = ""
+        return not detalhe
+
     def _parse_modelo4(self, linhas: List[str]) -> List[LancamentoBase]:
         """
         Extrato "Extrato de Conta Corrente" do BB (cabeçalho da tabela:
@@ -288,7 +308,19 @@ class ParserBB(ParserBase):
             if i + 1 < n:
                 prox = linhas[i + 1].strip()
                 eh_novo_lancamento = bool(re.match(r"^\d{2}/\d{2}/\d{4}", prox))
-                if prox and not eh_novo_lancamento and not self.IGNORAR_RE.search(prox):
+                # Se este lançamento já tem histórico embutido na própria
+                # linha (ex.: PRONAMPE) e a linha seguinte é, na real, o
+                # RÓTULO do PRÓXIMO lançamento (que não tem nada embutido
+                # e vai precisar dela) — não consome aqui, deixa livre
+                # pro próximo pegar. Sem isso, um lançamento como o
+                # "BB Rende Fácil" (resgate/aplicação) que vem logo
+                # depois de um PRONAMPE ficava sem rótulo nenhum.
+                eh_rotulo_do_proximo = (
+                    bool(detalhe_embutido) and not eh_novo_lancamento and prox
+                    and i + 2 < n and self._m4_precisa_rotulo(linhas[i + 2])
+                )
+                if (prox and not eh_novo_lancamento and not eh_rotulo_do_proximo
+                        and not self.IGNORAR_RE.search(prox)):
                     historico = f"{historico} - {prox}".strip(" -")
                     linhas_consumidas.add(i + 1)
 
