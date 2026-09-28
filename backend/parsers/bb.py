@@ -11,7 +11,7 @@ class ParserBB(ParserBase):
         r"^saldo|s\s*a\s*l\s*d\s*o|total aplic|sujeito|transação efetuada|"
         r"valide no app|recebeu cobran|bb\.com\.br|https?://|"
         r"cliente\b|agência:|conta:|lançamentos$|dia\s+lote|"
-        r"00/00/0000|rende facil|^\*\s*saldo|total aplicações|"
+        r"00/00/0000|rende\s*f[aá]cil|^\*\s*saldo|total aplicações|"
         r"^\s*$",
         re.IGNORECASE
     )
@@ -49,6 +49,13 @@ class ParserBB(ParserBase):
                     r"AG\.?\s*\n?\s*ORIGEM", texto_total, re.IGNORECASE
                 ):
                     return self._parse_modelo3(pdf)
+                # Extrato "Extrato de Conta Corrente" (cabeçalho de colunas
+                # "Dia Lote Documento Histórico Valor") — valores terminam
+                # em (+)/(-) igual ao modelo 1, mas aqui a DATA vem na
+                # MESMA linha do lote/documento/valor (não numa linha
+                # separada antes), então precisa de lógica própria.
+                if "Extrato de Conta Corrente" in texto_total:
+                    return self._parse_modelo4(texto_total.splitlines())
             if re.search(r"\d{1,3}(?:\.\d{3})*,\d{2}\s+[CD]\b", texto_total):
                 return self._parse_modelo2(texto_total.splitlines())
             else:
@@ -214,6 +221,91 @@ class ParserBB(ParserBase):
 
         historico = historico.strip(" -")
         return historico if len(historico) > 3 else texto_antes_valor
+
+    def _parse_modelo4(self, linhas: List[str]) -> List[LancamentoBase]:
+        """
+        Extrato "Extrato de Conta Corrente" do BB (cabeçalho da tabela:
+        "Dia Lote Documento Histórico Valor"). O valor termina em (+)/(-)
+        igual ao modelo 1, mas aqui a DATA fica na MESMA linha do
+        lote/documento/valor — diferente do modelo 1, onde a data fica
+        numa linha separada antes. Por isso não dá pra reaproveitar
+        _historico_modelo1 (que procura a data em linhas anteriores).
+
+        O texto entre o documento e o valor às vezes já traz o histórico
+        embutido (ex.: "13128 128914455000543 BB GIRO FGO PRONAMPE
+        2.457,81 (-)"); quando não traz (só números de lote/documento),
+        o rótulo do lançamento fica na linha ANTES da linha data+valor, e
+        o complemento (CNPJ, cidade, etc.) fica na linha DEPOIS — mesma
+        convenção do modelo 1, só que ancorada na própria linha da data.
+        """
+        resultado = []
+        n = len(linhas)
+        linhas_consumidas: set = set()
+
+        for i, linha_raw in enumerate(linhas):
+            linha = linha_raw.strip()
+            m_data = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(.*)", linha)
+            if not m_data:
+                continue
+
+            resto = m_data.group(2)
+            m_val = self.VALOR_M1_RE.search(resto)
+            if not m_val:
+                continue
+
+            if self.IGNORAR_RE.search(linha):
+                continue
+
+            data = m_data.group(1)[:5]
+            valor_str, sinal = m_val.group(1), m_val.group(2)
+
+            texto_antes_valor = resto[:m_val.start()].strip()
+            # tira lote/documento (tokens só de dígitos) do começo, deixa
+            # só o que sobrar (histórico já embutido na linha, se tiver)
+            detalhe_embutido = re.sub(r"^(?:\d+\s+){0,2}", "", texto_antes_valor).strip()
+            if re.match(r"^[\d\s./\-]*$", detalhe_embutido):
+                detalhe_embutido = ""
+
+            if detalhe_embutido:
+                historico = detalhe_embutido
+            else:
+                rotulo = None
+                for delta in (1, 2):
+                    idx = i - delta
+                    if idx < 0:
+                        continue
+                    cand = linhas[idx].strip()
+                    if not cand or idx in linhas_consumidas:
+                        continue
+                    if self.IGNORAR_RE.search(cand):
+                        continue
+                    if re.match(r"^\d{2}/\d{2}/\d{4}", cand):
+                        continue
+                    rotulo = cand
+                    break
+                historico = rotulo or ""
+
+            if i + 1 < n:
+                prox = linhas[i + 1].strip()
+                eh_novo_lancamento = bool(re.match(r"^\d{2}/\d{2}/\d{4}", prox))
+                if prox and not eh_novo_lancamento and not self.IGNORAR_RE.search(prox):
+                    historico = f"{historico} - {prox}".strip(" -")
+                    linhas_consumidas.add(i + 1)
+
+            historico = historico.strip(" -")
+            if not historico or len(historico) < 3 or self.IGNORAR_RE.search(historico):
+                continue
+
+            try:
+                valor = float(valor_str.replace(".", "").replace(",", "."))
+                if sinal == "-":
+                    valor = -valor
+            except ValueError:
+                continue
+
+            resultado.append(LancamentoBase(data, historico, valor, self.conta_banco))
+
+        return resultado
 
     def _parse_modelo3(self, pdf) -> List[LancamentoBase]:
         """
