@@ -42,6 +42,12 @@ FECHAMENTO_ALTO_PCT = 0.50
 # Recolher nesta sessão) — heurística de nome, não é cadastro por empresa
 _PASSIVO_TOLERA_DEVEDOR_RE = re.compile(r"a Recolher|a Pagar|^Prov\.", re.IGNORECASE)
 
+# diferença entre (bruto - retenções) e o valor da baixa de uma nota em
+# Clientes, como % do valor bruto da nota
+NOTA_TOLERANCIA_MINIMA = 0.05  # nunca menos que 5 centavos
+NOTA_MEDIO_PCT = 0.03
+NOTA_ALTO_PCT = 0.10
+
 _COMPETENCIA_RE = re.compile(
     r"ref\.?\s*(?:m[êe]s|comp\.?)\s*(\d{2})/(\d{4})", re.IGNORECASE
 )
@@ -57,6 +63,16 @@ _MESES_ABREV = {
 _COMPETENCIA_NOME_RE = re.compile(
     r"\b(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/(\d{4})\b", re.IGNORECASE
 )
+
+# padrão de nota fiscal em Clientes (visto em contas como UNIMED, Serviço
+# Social, Caixa de Assistência): a nota emitida vira um débito "Vr.vendas
+# prazo.../Vl.serviços prest... NF nº: <NF>" (bruto), cada imposto retido
+# vira um crédito "Vr.<imposto> retido... NF nº: <NF>" (IRRF, PIS, COFINS,
+# CSLL), e o recebimento vira um crédito "Vr.cred.n/cta ref.duplic.
+# <NF>-NNN" (baixa, valor líquido). O NF nº é o elo entre os três.
+_NF_RE = re.compile(r"NF\s*n[ºo]\.?\s*:?\s*(\d+)", re.IGNORECASE)
+_BAIXA_DUPLIC_RE = re.compile(r"ref\.?\s*duplic\.?\s*(\d+)-\d+", re.IGNORECASE)
+_RETENCAO_RE = re.compile(r"retid|IRRF", re.IGNORECASE)
 
 
 def _extrair_competencia(historico: str) -> Optional[int]:
@@ -312,6 +328,71 @@ def regra_provisao_diferente_pagamento(bloco: BlocoConta) -> list:
     return achados
 
 
+def regra_bruto_retencao_baixa_cliente(bloco: BlocoConta) -> list:
+    """
+    Reconciliação por nota fiscal em contas de Clientes que seguem o
+    padrão bruto/retenções/baixa descrito acima de _NF_RE: confere se
+    bruto menos as retenções (IRRF, PIS, COFINS, CSLL) bate com o valor
+    que de fato entrou na baixa do recebimento daquela nota. Só avalia
+    notas que já têm os dois lados no arquivo (bruto emitido e baixa
+    recebida); nota ainda em aberto não entra aqui (isso já é coberto
+    pelo aging da conta).
+    """
+    por_nf = defaultdict(lambda: {
+        "bruto": 0.0, "retido": 0.0, "baixa": 0.0,
+        "lanc_bruto": [], "lanc_retido": [], "lanc_baixa": [],
+    })
+
+    for l in bloco.lancamentos:
+        hist = l.historico or ""
+        m = _NF_RE.search(hist)
+        if m:
+            nf = m.group(1)
+            if l.debito > 0:
+                por_nf[nf]["bruto"] += l.debito
+                por_nf[nf]["lanc_bruto"].append(l.lancamento or "s/nº")
+            elif l.credito > 0 and _RETENCAO_RE.search(hist):
+                por_nf[nf]["retido"] += l.credito
+                por_nf[nf]["lanc_retido"].append(l.lancamento or "s/nº")
+            continue
+
+        m2 = _BAIXA_DUPLIC_RE.search(hist)
+        if m2 and l.credito > 0:
+            nf = m2.group(1)
+            por_nf[nf]["baixa"] += l.credito
+            por_nf[nf]["lanc_baixa"].append(l.lancamento or "s/nº")
+
+    achados = []
+    for nf, d in sorted(por_nf.items()):
+        if d["bruto"] <= TOLERANCIA_ARITMETICA or d["baixa"] <= TOLERANCIA_ARITMETICA:
+            continue  # falta um dos dois lados pra conferir (nota ainda em aberto, por exemplo)
+
+        liquido_calculado = d["bruto"] - d["retido"]
+        diff = liquido_calculado - d["baixa"]
+        if abs(diff) < NOTA_TOLERANCIA_MINIMA:
+            continue
+
+        pct = abs(diff) / d["bruto"]
+        if pct >= NOTA_ALTO_PCT:
+            severidade = "Alto"
+        elif pct >= NOTA_MEDIO_PCT:
+            severidade = "Médio"
+        else:
+            severidade = "Baixo"
+
+        achados.append(_achado_conta(
+            bloco, "nota_bruto_retencao_baixa_diverge",
+            f"NF {nf}: bruto R$ {d['bruto']:,.2f} (lanç {', '.join(d['lanc_bruto'])}), "
+            f"retenções R$ {d['retido']:,.2f} (lanç {', '.join(d['lanc_retido']) or 's/nº'}), "
+            f"líquido calculado R$ {liquido_calculado:,.2f}, mas a baixa foi de "
+            f"R$ {d['baixa']:,.2f} (lanç {', '.join(d['lanc_baixa'])}), diferença de "
+            f"R$ {diff:,.2f}. Confira se alguma retenção foi lançada errada (a mais "
+            f"ou a menos) ou se a baixa não reflete o valor líquido certo.",
+            severidade, valor=diff, referencia=nf,
+        ))
+    return achados
+
+
 def regra_rescisao_com_saldo_anterior_zerado(bloco: BlocoConta) -> list:
     """
     Pagamento de rescisão referenciando uma competência bem anterior ao
@@ -469,6 +550,7 @@ def analisar(blocos: list, data_referencia: Optional[date] = None) -> list:
         achados.extend(regra_buraco_provisao(bloco, data_referencia))
         achados.extend(regra_buraco_pagamento(bloco, data_referencia))
         achados.extend(regra_provisao_diferente_pagamento(bloco))
+        achados.extend(regra_bruto_retencao_baixa_cliente(bloco))
         achados.extend(regra_rescisao_com_saldo_anterior_zerado(bloco))
 
     achados.extend(regra_concentracao_e_aging(blocos, data_referencia))
